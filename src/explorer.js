@@ -6,11 +6,12 @@ const $ = selector => document.querySelector(selector);
 const esc = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const fmt = number => number.toLocaleString('zh-CN');
 
-export function createExplorer({ rpc, ensureDoc, getRevision, isSynced, getLength, locate, toast }) {
+export function createExplorer({ rpc, ensureDoc, getRevision, isSynced, getLength, locate, toast, onSearchResults }) {
   let graphRequest = 0, searchRequest = 0, focusRequest = 0;
   let timer, searchTimer, focusTimer, position = 0, focusRow;
   let options = { collapsed: [] };
   let selectedSearch = -1;
+  let searchOpen = false;
   const current = version => version === getRevision();
   const graph = new GraphView($('#graph-canvas'), {
     select(row) { if (isSynced()) locate(row.offset, 0); },
@@ -34,6 +35,17 @@ export function createExplorer({ rpc, ensureDoc, getRevision, isSynced, getLengt
     el.querySelector('.search-copy').onclick = () => copyPath(row.path);
     return el;
   } });
+  function showResults(open) {
+    searchOpen = open;
+    const visible = open && Boolean($('#node-search').value.trim());
+    $('#search-results').hidden = !visible;
+    $('#node-search').setAttribute('aria-expanded', String(visible));
+    if (visible) results.schedule();
+  }
+  function setResults(rows, reset = false) {
+    results.setRows(rows, reset);
+    onSearchResults(rows);
+  }
   async function copyPath(path = focusRow?.path) {
     if (!path) return;
     try { await navigator.clipboard.writeText(path); toast('已复制路径'); }
@@ -76,11 +88,11 @@ export function createExplorer({ rpc, ensureDoc, getRevision, isSynced, getLengt
   async function runSearch() {
     clearTimeout(searchTimer);
     const query = $('#node-search').value.trim(), request = ++searchRequest;
-    $('#search-results').hidden = !query;
-    if (!query) { results.setRows([]); $('#search-count').textContent = ''; return; }
+    showResults(searchOpen);
+    if (!query) { setResults([]); $('#search-count').textContent = ''; return; }
     $('#search-count').textContent = '搜索中…';
     selectedSearch = -1;
-    results.setRows([], true);
+    setResults([], true);
     if (!getLength()) { $('#search-count').textContent = '0 项'; return; }
     const version = getRevision();
     try {
@@ -88,13 +100,13 @@ export function createExplorer({ rpc, ensureDoc, getRevision, isSynced, getLengt
       if (!current(version) || request !== searchRequest) return;
       const { result } = await rpc('search', { side: 'editor', query });
       if (!current(version) || request !== searchRequest) return;
-      results.setRows(result, true);
+      setResults(result, true);
       $('#search-count').textContent = `${fmt(result.length)} 项`;
     } catch {
       if (current(version) && request === searchRequest) $('#search-count').textContent = '请先修正 JSON';
     }
   }
-  function chooseResult(index) {
+  function chooseResult(index, keepOpen = false) {
     if (!isSynced() || !results.rows[index]) return;
     selectedSearch = index;
     const row = results.rows[index];
@@ -103,6 +115,7 @@ export function createExplorer({ rpc, ensureDoc, getRevision, isSynced, getLengt
     clearTimeout(focusTimer);
     updateFocus(true).catch(report);
     results.scrollTo(index);
+    showResults(keepOpen);
   }
   async function refresh() {
     clearTimeout(timer);
@@ -127,7 +140,7 @@ export function createExplorer({ rpc, ensureDoc, getRevision, isSynced, getLengt
     clearTimeout(timer); clearTimeout(searchTimer); clearTimeout(focusTimer);
     options = { collapsed: [] };
     graph.clear(getLength() ? '正在解析…' : '粘贴 JSON 后查看结构');
-    results.setRows([], true);
+    setResults([], true);
     $('#search-count').textContent = '';
     $('#graph-info').textContent = '';
     $('#graph-path').textContent = '$';
@@ -142,19 +155,29 @@ export function createExplorer({ rpc, ensureDoc, getRevision, isSynced, getLengt
   $('#node-search').oninput = () => {
     searchRequest++;
     clearTimeout(searchTimer);
-    results.setRows([], true);
-    $('#search-results').hidden = !$('#node-search').value.trim();
+    setResults([], true);
+    showResults(true);
     searchTimer = setTimeout(runSearch, 220);
   };
   $('#node-search').onkeydown = event => {
-    if (event.key === 'Escape') { $('#node-search').value = ''; runSearch(); }
     if (event.key === 'Enter' && results.rows.length) {
       event.preventDefault();
       const delta = event.shiftKey ? -1 : 1;
-      chooseResult((selectedSearch + delta + results.rows.length) % results.rows.length);
+      chooseResult((selectedSearch + delta + results.rows.length) % results.rows.length, true);
       $('#node-search').focus();
     }
   };
+  $('#node-search').onfocus = () => showResults(true);
+  $('#node-search').onclick = () => showResults(true);
+  $('#close-search-results').onclick = () => { $('#node-search').focus(); showResults(false); };
+  document.addEventListener('pointerdown', event => {
+    if (!event.target.closest('.explorer-search, #search-results, [data-action="search"]')) showResults(false);
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && searchOpen) {
+      event.preventDefault(); $('#node-search').focus(); showResults(false);
+    }
+  });
   $('#clear-search').onclick = () => { $('#node-search').value = ''; runSearch(); $('#node-search').focus(); };
   $('#copy-path').onclick = () => copyPath();
   $('#reveal-focus').onclick = () => updateFocus(true).catch(report);
@@ -164,5 +187,5 @@ export function createExplorer({ rpc, ensureDoc, getRevision, isSynced, getLengt
   $('#graph-out').onclick = () => graph.zoom(1 / 1.2);
   graph.clear();
   setPath(null, '$');
-  return { refresh, changed, cursor, search: () => { $('#node-search').focus(); $('#node-search').select(); } };
+  return { refresh, changed, cursor, search: () => { $('#node-search').focus(); $('#node-search').select(); showResults(true); } };
 }

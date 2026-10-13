@@ -60,12 +60,20 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 #focus-type { flex: none; color: #8d9886; font-size: 10px; }
 .focus-bar .icon-btn { width: 25px; height: 25px; }
 .editor-body { flex: 1; min-height: 0; display: flex; --code-width: 44%; }
-.code-pane { width: var(--code-width); flex: none; min-width: 0; }
+.code-pane { width: var(--code-width); flex: none; min-width: 0; display: flex; }
+.code-pane > .editor-host { flex: 1; }
+.code-minimap { width: 110px; flex: none; position: relative; border-left: 1px solid #e8eee3; background: #fafcf8; }
+.code-minimap.collapsed { width: 24px; }
+.minimap-toggle { position: absolute; right: 2px; top: 3px; width: 20px; height: 22px; display: grid; place-items: center; color: #7f9275; border-radius: 3px; }
+.minimap-toggle:hover { background: #e7efdf; color: #496b3b; }
+.minimap-toggle .icon { width: 13px; height: 13px; }
+.code-minimap.collapsed .minimap-toggle .icon { transform: rotate(180deg); }
+.minimap-canvas { position: absolute; top: 29px; left: 0; width: 100%; height: calc(100% - 29px); cursor: pointer; touch-action: none; outline-offset: -2px; }
 .editor-host { height: 100%; overflow: hidden; min-width: 0; }
 .splitter { width: 6px; flex: none; background: #f6f8f3; border-inline: 1px solid var(--border); cursor: col-resize; touch-action: none; }
 .splitter:hover, .splitter.dragging { background: #cadcc1; }
-.explorer-pane { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; background: #fafbf8; }
-.explorer-search { display: flex; align-items: center; gap: 4px; padding: 9px 12px; border-bottom: 1px solid var(--border); background: #fff; }
+.explorer-pane { position: relative; display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; background: #fafbf8; }
+.explorer-search { display: flex; flex: none; align-items: center; gap: 4px; height: 52px; padding: 9px 12px; border-bottom: 1px solid var(--border); background: #fff; }
 .explorer-search .search-field { flex: 1; }
 .search-field { display: flex; align-items: center; gap: 7px; padding: 0 10px; border: 1px solid var(--border); background: #fdfefb; border-radius: 4px; min-width: 80px; }
 .search-field .icon { width: 14px; height: 14px; color: #94a782; }
@@ -104,10 +112,11 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .graph-controls .icon-btn { width: 27px; height: 27px; }
 #graph-zoom { font: 10px var(--mono); color: #6d805c; min-width: 34px; text-align: center; }
 #graph-info { color: #8d9c80; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-inline: 8px; }
-.search-results { height: 40%; min-height: 160px; max-height: 50%; display: flex; flex-direction: column; background: #fff; border-top: 1px solid #dce5d6; }
+.search-results { position: absolute; z-index: 5; top: 56px; left: 12px; right: 12px; height: min(480px, calc(100% - 68px)); display: flex; flex-direction: column; background: #fff; border: 1px solid #cddbc4; border-radius: 7px; box-shadow: 0 9px 28px #273b2524, 0 2px 6px #273b2510; overflow: hidden; }
 .search-results-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; flex: none; min-height: 36px; border-bottom: 1px solid #edf1e8; font-size: 11px; }
 .search-results-heading strong { font-weight: 500; white-space: nowrap; }
 .search-results-heading > span { font-size: 9px; color: #97a38c; }
+.search-results-heading > .icon-btn { width: 24px; height: 24px; flex: none; }
 #search-count { color: #7d926c; margin-left: 6px; }
 #search-list { flex: 1; min-height: 0; }
 .virtual-list { position: relative; overflow: auto; overscroll-behavior: contain; contain: strict; scrollbar-width: thin; scrollbar-color: #d6e1cb transparent; }
@@ -225,11 +234,12 @@ dialog::backdrop { background: #28332050; }
   .explorer-pane { border-top: 1px solid var(--border); }
   .editor-workbench { min-height: 780px; }
   .graph-area { min-height: 170px; }
-  .search-results { height: 180px; min-height: 140px; }
+  .code-minimap { width: 76px; }
+  .search-results { left: 9px; right: 9px; top: 48px; height: calc(100% - 60px); }
   .search-results-heading > span { display: none; }
   .focus-bar { padding-inline: 9px; gap: 7px; }
   #focus-type { display: none; }
-  .explorer-search { padding: 6px 9px; }
+  .explorer-search { padding: 6px 9px; height: 44px; }
   .graph-heading { min-height: 31px; padding-inline: 9px; }
 
   .app-header { height: 49px; padding: 0 13px; gap: 15px; }

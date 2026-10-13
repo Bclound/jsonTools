@@ -7,6 +7,7 @@ import { createAutoCompare } from './auto-compare.js';
 import { VirtualList } from './virtual-list.js';
 import { icon } from './icons.js';
 import { createExplorer } from './explorer.js';
+import { CodeMinimap } from './minimap.js';
 
 const $ = selector => document.querySelector(selector);
 const esc = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -34,13 +35,13 @@ $('#app').innerHTML = `
         <div class="error-banner" id="editor-error" hidden></div>
         <div class="focus-bar"><span class="focus-label">当前位置</span><code id="focus-path" aria-live="polite">$</code><span id="focus-type"></span><button class="icon-btn" id="copy-path" aria-label="复制当前位置路径" title="复制完整路径">${icon('copy')}</button><button class="icon-btn" id="reveal-focus" aria-label="在结构图中定位当前字段" title="在结构图中定位">${icon('tree')}</button></div>
         <div class="editor-body" id="editor-body">
-          <div class="code-pane"><div class="editor-host" id="editor-host"></div></div>
+          <div class="code-pane"><div class="editor-host" id="editor-host"></div><aside class="code-minimap" id="code-minimap" aria-label="代码缩略图"><button class="minimap-toggle" aria-label="收起代码缩略图" title="收起代码缩略图" aria-expanded="true" aria-controls="minimap-canvas">${icon('chevron')}</button><canvas class="minimap-canvas" id="minimap-canvas" tabindex="0" role="scrollbar" aria-label="代码缩略图导航" aria-controls="editor-host" aria-orientation="vertical" aria-valuemin="1" aria-valuemax="1" aria-valuenow="1" title="点击定位 · 拖动滑块 · 滚轮滚动；右侧金色标记为全文搜索命中行"></canvas></aside></div>
           <div id="editor-splitter" class="splitter" role="separator" aria-label="调整代码区域宽度" aria-orientation="vertical" aria-valuemin="25" aria-valuemax="75" aria-valuenow="44" tabindex="0"></div>
           <aside class="explorer-pane" aria-label="JSON 结构与搜索">
-            <div class="explorer-search"><label class="search-field">${icon('search')}<input id="node-search" placeholder="全局搜索字段、值或路径" aria-label="全局搜索字段、值或路径" autocomplete="off" /></label><button class="icon-btn" id="clear-search" aria-label="清空搜索" title="清空搜索">${icon('close')}</button></div>
+            <div class="explorer-search"><label class="search-field">${icon('search')}<input id="node-search" aria-controls="search-results" aria-expanded="false" aria-haspopup="dialog" placeholder="全局搜索字段、值或路径" aria-label="全局搜索字段、值或路径" autocomplete="off" /></label><button class="icon-btn" id="clear-search" aria-label="清空搜索" title="清空搜索">${icon('close')}</button></div>
             <div class="graph-heading"><strong>结构图</strong><code id="graph-path">$</code><span class="graph-follow">跟随光标</span></div>
             <div class="graph-area"><div id="graph-canvas" class="graph-canvas" tabindex="0" role="region" aria-label="JSON 结构图，可拖动平移、滚轮缩放"></div><div class="graph-controls"><button class="icon-btn" id="graph-fit" title="适应画布" aria-label="适应画布">${icon('expand')}</button><span class="divider"></span><button class="icon-btn" id="graph-out" title="缩小" aria-label="缩小结构图">−</button><button id="graph-zoom" title="恢复 100% 并定位当前字段" aria-label="恢复结构图原始大小">100%</button><button class="icon-btn" id="graph-in" title="放大" aria-label="放大结构图">+</button><span id="graph-info"></span></div></div>
-            <section class="search-results" id="search-results" aria-label="搜索结果" hidden><div class="search-results-heading"><strong>全局搜索结果 <span id="search-count" role="status"></span></strong><span>Enter 下一项 · Shift + Enter 上一项</span></div><div id="search-list" class="virtual-list"></div></section>
+            <section class="search-results" id="search-results" role="dialog" aria-modal="false" aria-label="搜索结果" hidden><div class="search-results-heading"><strong>全局搜索结果 <span id="search-count" role="status"></span></strong><span>Enter 下一项 · Shift + Enter 上一项</span><button class="icon-btn" id="close-search-results" title="收起搜索结果，保留关键词" aria-label="收起搜索结果">${icon('close')}</button></div><div id="search-list" class="virtual-list"></div></section>
           </aside>
         </div>
         <div class="statusbar"><div class="status-group"><span class="validation-status" id="editor-status">待输入</span><span class="stat-separator"></span><span id="editor-lines"></span><span id="editor-size"></span></div><div class="status-group"><span id="cursor-position">行 1，列 1</span><span class="stat-separator"></span><span>UTF-8</span></div></div>
@@ -54,7 +55,7 @@ $('#app').innerHTML = `
   </main>
   <div class="busy-indicator" id="busy" role="status" hidden><span class="spinner"></span><span id="busy-text"></span><button data-action="cancel">取消</button></div>
   <div id="toast" role="status" hidden></div>
-  <dialog id="help-dialog"><div class="dialog-title"><h2>快捷键与使用说明</h2>${iconButton('close', '关闭说明', 'close-help')}</div><div class="help-section"><p>直接粘贴 JSON。单行压缩 JSON 双击左键即可格式化；多行已排版内容双击选中单词，再按 ⌘ / Ctrl + C 复制。输入或修改对比选项后，会自动更新差异；两侧滚动条同步。</p><p>对比默认按数组索引匹配。忽略数组顺序时，未匹配项分别显示为删除与新增。大整数保留原始精度，重复字段需先消除歧义才能对比。</p><p>搜索覆盖完整文档，只匹配字段名或值本身，不因祖先路径命中而列出子项；输入完整路径可精确查找。结果显示路径与数组下标。点击结果或图中字段可定位代码；当前位置栏跟随光标更新，可复制路径。结构图支持拖动、缩放，全部节点默认展开，无分页。光标移动时自动定位图中的对应 key；缩小为概览时显示节点轮廓，放大后显示字段。</p><p>关闭或刷新页面会清空内容，需要保留时请复制或下载。</p></div><div class="shortcut-list"><div><span>格式化</span><kbd>双击左键 / ⌘ Ctrl + Shift + F</kbd></div><div><span>搜索字段 / 值 / 路径</span><kbd>⌘ / Ctrl + F</kbd></div><div><span>下载 JSON</span><kbd>⌘ / Ctrl + S</kbd></div><div><span>撤销</span><kbd>⌘ / Ctrl + Z</kbd></div><div><span>切换编辑器 / 对比</span><kbd>Alt + 1 / 2</kbd></div></div></dialog>
+  <dialog id="help-dialog"><div class="dialog-title"><h2>快捷键与使用说明</h2>${iconButton('close', '关闭说明', 'close-help')}</div><div class="help-section"><p>直接粘贴 JSON。单行压缩 JSON 双击左键即可格式化；多行已排版内容双击选中单词，再按 ⌘ / Ctrl + C 复制。输入或修改对比选项后，会自动更新差异；两侧滚动条同步。</p><p>对比默认按数组索引匹配。忽略数组顺序时，未匹配项分别显示为删除与新增。大整数保留原始精度，重复字段需先消除歧义才能对比。</p><p>搜索覆盖完整文档，只匹配字段名或值本身，不因祖先路径命中而列出子项；输入完整路径可精确查找。搜索结果浮在搜索框下方，点击结果后收起；Esc、关闭按钮或点击外部可收起，再次点击搜索框可展开。结果显示路径与数组下标。代码右侧缩略图支持点击、拖动、滚轮和收起/展开；金色标记显示搜索命中行，最右侧标记覆盖全文。点击结果或图中字段可定位代码；当前位置栏跟随光标更新，可复制路径。结构图支持拖动、缩放，全部节点默认展开，无分页。光标移动时自动定位图中的对应 key；缩小为概览时显示节点轮廓，放大后显示字段。</p><p>关闭或刷新页面会清空内容，需要保留时请复制或下载。</p></div><div class="shortcut-list"><div><span>格式化</span><kbd>双击左键 / ⌘ Ctrl + Shift + F</kbd></div><div><span>搜索字段 / 值 / 路径</span><kbd>⌘ / Ctrl + F</kbd></div><div><span>下载 JSON</span><kbd>⌘ / Ctrl + S</kbd></div><div><span>撤销</span><kbd>⌘ / Ctrl + Z</kbd></div><div><span>切换编辑器 / 对比</span><kbd>Alt + 1 / 2</kbd></div></div></dialog>
 `;
 
 const state = { page: 'editor', indent: 2, busy: false, diff: null, filter: 'all', diffQuery: '', diffFresh: false, selectedDiff: null };
@@ -214,11 +215,13 @@ async function transform(operation, side = 'editor') {
     toast(`${operation === 'format' ? '格式化' : '压缩'}完成 · ${Math.round(elapsed)} ms`);
   });
 }
+const minimap = new CodeMinimap(docs.editor.view, $('#code-minimap'), line => locate('editor', docs.editor.view.state.doc.line(line).from, 0));
 explorer = createExplorer({
   rpc, ensureDoc: () => ensureDoc('editor'), getRevision: () => docs.editor.revision,
   isSynced: () => docs.editor.synced === docs.editor.revision,
   getLength: () => docs.editor.view.state.doc.length,
   locate: (offset, length) => locate('editor', offset, length), toast,
+  onSearchResults: rows => minimap.setMatches(rows),
 });
 const splitter = $('#editor-splitter');
 function setSplit(percent) {
