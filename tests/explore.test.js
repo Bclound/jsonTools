@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseDocument } from '../src/core.js';
 import { findFocus, searchDocument, graphDocument } from '../src/explore-core.js';
+import { layoutGraph, visibleCards, visibleFieldRange, CARD_HEADER, FIELD_HEIGHT } from '../src/graph-layout.js';
 
 test('光标路径包含数组下标和特殊键名，属性名和值都能定位', () => {
   const text = '{\n  "fields": [{"a.b": {"空 格": "目标值"}, "next": true}]\n}';
@@ -40,18 +41,19 @@ test('重复字段按原文位置分别显示，路径不会被覆盖', () => {
   assert.equal(findFocus(doc, rows[1].offset).value, '"b"');
 });
 
-test('结构图展开、收起、分支与分页可访问完整数组', () => {
+test('结构图默认完整展开，全部数组元素与深层字段无分页', () => {
   const doc = parseDocument(JSON.stringify({ fields: Array.from({ length: 35 }, (_, id) => ({ id, settings: { required: true } })) }));
-  const first = graphDocument(doc);
-  const array = first.cards.find(card => card.path === '$.fields');
-  assert.equal(array.rows.length, 10);
-  const last = graphDocument(doc, { rootId: array.id, pages: { [array.id]: 3 } });
-  assert.equal(last.cards[0].rows[0].key, 30);
-  assert.equal(last.cards[0].rows.at(-1).path, '$.fields[34]');
+  const graph = graphDocument(doc);
+  const array = graph.cards.find(card => card.path === '$.fields');
+  assert.equal(array.rows.length, 35);
+  assert.equal(array.rows.at(-1).path, '$.fields[34]');
+  assert.ok(graph.cards.some(card => card.path === '$.fields[34].settings'));
+  assert.equal(graph.cards.length, 72);
   const closed = graphDocument(doc, { collapsed: [array.id] });
   assert.equal(closed.cards.length, 1);
-  const expanded = graphDocument(doc, { rootId: array.id, pages: { [array.id]: 99 } });
-  assert.equal(expanded.cards[0].page, 3);
+  const focused = findFocus(doc, searchDocument(doc, '$.fields[34].settings.required')[0].offset);
+  assert.ok(focused.ancestors.includes(array.id));
+  assert.equal(graphDocument(doc, { collapsed: [array.id].filter(id => !focused.ancestors.includes(id)) }).cards.length, 72);
 });
 
 test('标量与空容器也可显示、搜索和定位', () => {
@@ -62,31 +64,61 @@ test('标量与空容器也可显示、搜索和定位', () => {
   }
 });
 
-test('宽分支图达到显示预算后仍可单独进入任意分支', () => {
-  const doc = parseDocument(JSON.stringify(Array.from({ length: 10 }, () => Array.from({ length: 10 }, () => ({ deep: { value: 1 } })))));
+test('宽分支不截断卡片数量，图折叠不影响全局搜索结果', () => {
+  const doc = parseDocument(JSON.stringify(Array.from({ length: 10 }, () => Array.from({ length: 10 }, () => ({ deep: { same: 1 } })))));
   const graph = graphDocument(doc);
-  assert.equal(graph.cards.length, 80);
-  const row = searchDocument(doc, '$[9][9].deep.value')[0];
-  const focus = findFocus(doc, row.offset);
-  assert.equal(graphDocument(doc, { rootId: focus.containerId }).root.path, '$[9][9].deep');
+  assert.equal(graph.cards.length, 211);
+  const before = searchDocument(doc, 'same');
+  graphDocument(doc, { collapsed: graph.cards.slice(1).map(card => card.id) });
+  assert.deepEqual(searchDocument(doc, 'same'), before);
+  assert.equal(before.length, 100);
+  assert.equal(before.at(-1).path, '$[9][9].deep.same');
 });
 
-test('十二万行配置：全量搜索末尾节点，图模型有界且直接定位正确页', () => {
+test('十二万行配置：完整图及长卡片按可见范围渲染，精确定位末尾字段', () => {
   const text = JSON.stringify(Array.from({ length: 20000 }, (_, id) => ({ id, label: `字段 ${id}`, required: false, value: '' })), null, 2);
   const doc = parseDocument(text), started = performance.now();
   const graph = graphDocument(doc);
   assert.ok(doc.lines > 100000);
-  assert.ok(graph.cards.length <= 80);
-  assert.ok(graph.cards.every(card => card.rows.length <= 10));
+  assert.equal(graph.cards.length, 20001);
+  assert.equal(graph.cards[0].rows.length, 20000);
+  const layout = layoutGraph(graph);
+  const lastField = graph.cards.at(-1).rows.find(row => row.key === 'label');
+  const target = layout.targets.get(lastField.id);
+  assert.equal(target.card.path, '$[19999]');
+  assert.equal(target.y, target.card.y + CARD_HEADER + 1.5 * FIELD_HEIGHT);
+  const bounds = { left: target.x - 400, right: target.x + 400, top: target.y - 300, bottom: target.y + 300 };
+  const visible = visibleCards(layout, bounds);
+  assert.ok(visible.length < 12);
+  assert.ok(visible.some(card => card.path === '$[19999]'));
   const row = searchDocument(doc, '字段 19999')[0];
   assert.equal(row.path, '$[19999].label');
   assert.equal(findFocus(doc, row.offset).path, row.path);
   const arrayItem = searchDocument(doc, '$[19999]')[0];
   const focus = findFocus(doc, arrayItem.offset);
   assert.equal(focus.path, '$[19999]');
-  const branch = graphDocument(doc, { rootId: focus.containerId });
-  assert.equal(branch.root.path, '$[19999]');
+  assert.ok(layout.targets.has(focus.id));
   const primitive = parseDocument(JSON.stringify(Array.from({ length: 20000 }, (_, id) => id)));
-  assert.equal(findFocus(primitive, primitive.text.lastIndexOf('19999')).containerPage, 1999);
+  const allValues = layoutGraph(graphDocument(primitive));
+  const lastValue = findFocus(primitive, primitive.text.lastIndexOf('19999'));
+  const destination = allValues.targets.get(lastValue.id);
+  const range = visibleFieldRange(allValues.cards[0], { top: destination.y - 300, bottom: destination.y + 300 });
+  assert.equal(range.to, 20000);
+  assert.ok(range.to - range.from < 25);
   console.log(`路径索引与搜索：${doc.lines} 行，初始图 ${graph.cards.length} 张卡片，${Math.round(performance.now() - started)} ms`);
+});
+
+test('一级和嵌套字段：整行、值末尾、逗号后均保留具体字段路径', () => {
+  const text = '{\n  "same": true,  \n  "group": {\n    "same": "hello",\n    "last": 1\n  },\n  "key": null\n}';
+  const doc = parseDocument(text);
+  for (const [line, expected] of [[1, '$.same'], [3, '$.group.same'], [4, '$.group.last'], [6, '$.key']]) {
+    const lines = text.split('\n');
+    const start = lines.slice(0, line).join('\n').length + 1;
+    for (let offset = start; offset <= start + lines[line].length; offset++) {
+      assert.equal(findFocus(doc, offset).path, expected, `位置 ${offset}`);
+    }
+  }
+  const close = text.indexOf('  },') + 4;
+  assert.equal(findFocus(doc, close).path, '$.group');
+  assert.equal(findFocus(doc, text.length).path, '$');
 });

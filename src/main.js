@@ -22,13 +22,13 @@ $('#app').innerHTML = `
       <button class="active" data-action="nav-editor" aria-current="page">编辑器</button>
       <button data-action="nav-diff">对比</button>
     </nav>
-    <div class="header-actions"><span>双击代码区格式化</span>${iconButton('keyboard', '快捷键与使用说明', 'help')}</div>
+    <div class="header-actions"><span>单行双击格式化 · 多行双击选词</span>${iconButton('keyboard', '快捷键与使用说明', 'help')}</div>
   </header>
   <main class="tool-content">
     <section id="editor-page" aria-label="JSON 编辑器">
       <div class="workbench editor-workbench">
         <div class="toolbar">
-          <div class="toolbar-main">${button('format', '格式化', 'format', 'primary', '左键双击代码区，或 ⌘ / Ctrl + Shift + F')}${button('compact', '压缩', 'compact')}${button('check', '校验', 'validate')}<span class="divider"></span><select id="indent" aria-label="缩进空格数"><option value="2">2 空格</option><option value="4">4 空格</option><option value="8">8 空格</option></select></div>
+          <div class="toolbar-main">${button('format', '格式化', 'format', 'primary', '单行 JSON 双击格式化，或 ⌘ / Ctrl + Shift + F')}${button('compact', '压缩', 'compact')}${button('check', '校验', 'validate')}<span class="divider"></span><select id="indent" aria-label="缩进空格数"><option value="2">2 空格</option><option value="4">4 空格</option><option value="8">8 空格</option></select></div>
           <div class="toolbar-end">${button('search', '搜索', 'search', '', '搜索字段、值或路径 · ⌘ / Ctrl + F')}<span class="divider"></span>${iconButton('copy', '复制 JSON', 'copy')}${iconButton('download', '下载 JSON', 'download')}${iconButton('trash', '清空 JSON（可撤销）', 'clear')}</div>
         </div>
         <div class="error-banner" id="editor-error" hidden></div>
@@ -37,10 +37,10 @@ $('#app').innerHTML = `
           <div class="code-pane"><div class="editor-host" id="editor-host"></div></div>
           <div id="editor-splitter" class="splitter" role="separator" aria-label="调整代码区域宽度" aria-orientation="vertical" aria-valuemin="25" aria-valuemax="75" aria-valuenow="44" tabindex="0"></div>
           <aside class="explorer-pane" aria-label="JSON 结构与搜索">
-            <div class="explorer-search"><label class="search-field">${icon('search')}<input id="node-search" placeholder="搜索字段、值或路径" aria-label="搜索字段、值或路径" autocomplete="off" /></label><button class="icon-btn" id="clear-search" aria-label="清空搜索" title="清空搜索">${icon('close')}</button></div>
-            <div class="graph-heading"><strong>结构图</strong><code id="graph-path">$</code><button id="graph-up" title="查看上一级" disabled>上一级</button><button id="graph-root" title="返回根节点" disabled>根节点</button></div>
-            <div class="graph-area"><div id="graph-canvas" class="graph-canvas" tabindex="0" role="region" aria-label="JSON 结构图，可拖动平移、滚轮缩放"></div><div class="graph-controls"><button class="icon-btn" id="graph-fit" title="适应画布" aria-label="适应画布">${icon('expand')}</button><span class="divider"></span><button class="icon-btn" id="graph-out" title="缩小" aria-label="缩小结构图">−</button><span id="graph-zoom">100%</span><button class="icon-btn" id="graph-in" title="放大" aria-label="放大结构图">+</button><span id="graph-info"></span></div></div>
-            <section class="search-results" id="search-results" aria-label="搜索结果" hidden><div class="search-results-heading"><strong>搜索结果 <span id="search-count" role="status"></span></strong><span>Enter 下一项 · Shift + Enter 上一项</span></div><div id="search-list" class="virtual-list"></div></section>
+            <div class="explorer-search"><label class="search-field">${icon('search')}<input id="node-search" placeholder="全局搜索字段、值或路径" aria-label="全局搜索字段、值或路径" autocomplete="off" /></label><button class="icon-btn" id="clear-search" aria-label="清空搜索" title="清空搜索">${icon('close')}</button></div>
+            <div class="graph-heading"><strong>结构图</strong><code id="graph-path">$</code><span class="graph-follow">跟随光标</span></div>
+            <div class="graph-area"><div id="graph-canvas" class="graph-canvas" tabindex="0" role="region" aria-label="JSON 结构图，可拖动平移、滚轮缩放"></div><div class="graph-controls"><button class="icon-btn" id="graph-fit" title="适应画布" aria-label="适应画布">${icon('expand')}</button><span class="divider"></span><button class="icon-btn" id="graph-out" title="缩小" aria-label="缩小结构图">−</button><button id="graph-zoom" title="恢复 100% 并定位当前字段" aria-label="恢复结构图原始大小">100%</button><button class="icon-btn" id="graph-in" title="放大" aria-label="放大结构图">+</button><span id="graph-info"></span></div></div>
+            <section class="search-results" id="search-results" aria-label="搜索结果" hidden><div class="search-results-heading"><strong>全局搜索结果 <span id="search-count" role="status"></span></strong><span>Enter 下一项 · Shift + Enter 上一项</span></div><div id="search-list" class="virtual-list"></div></section>
           </aside>
         </div>
         <div class="statusbar"><div class="status-group"><span class="validation-status" id="editor-status">待输入</span><span class="stat-separator"></span><span id="editor-lines"></span><span id="editor-size"></span></div><div class="status-group"><span id="cursor-position">行 1，列 1</span><span class="stat-separator"></span><span>UTF-8</span></div></div>
@@ -54,7 +54,7 @@ $('#app').innerHTML = `
   </main>
   <div class="busy-indicator" id="busy" role="status" hidden><span class="spinner"></span><span id="busy-text"></span><button data-action="cancel">取消</button></div>
   <div id="toast" role="status" hidden></div>
-  <dialog id="help-dialog"><div class="dialog-title"><h2>快捷键与使用说明</h2>${iconButton('close', '关闭说明', 'close-help')}</div><div class="help-section"><p>直接粘贴 JSON。在任意代码区双击左键，即可格式化当前内容。输入或修改对比选项后，会自动更新差异；两侧滚动条同步。</p><p>对比默认按数组索引匹配。忽略数组顺序时，未匹配项分别显示为删除与新增。大整数保留原始精度，重复字段需先消除歧义才能对比。</p><p>搜索覆盖完整文档，结果显示路径与数组下标。点击结果或图中字段可定位代码；当前位置栏跟随光标更新，可复制路径。结构图支持拖动、缩放，较长对象与数组按组显示。</p><p>关闭或刷新页面会清空内容，需要保留时请复制或下载。</p></div><div class="shortcut-list"><div><span>格式化</span><kbd>双击左键 / ⌘ Ctrl + Shift + F</kbd></div><div><span>搜索字段 / 值 / 路径</span><kbd>⌘ / Ctrl + F</kbd></div><div><span>下载 JSON</span><kbd>⌘ / Ctrl + S</kbd></div><div><span>撤销</span><kbd>⌘ / Ctrl + Z</kbd></div><div><span>切换编辑器 / 对比</span><kbd>Alt + 1 / 2</kbd></div></div></dialog>
+  <dialog id="help-dialog"><div class="dialog-title"><h2>快捷键与使用说明</h2>${iconButton('close', '关闭说明', 'close-help')}</div><div class="help-section"><p>直接粘贴 JSON。单行压缩 JSON 双击左键即可格式化；多行已排版内容双击选中单词，再按 ⌘ / Ctrl + C 复制。输入或修改对比选项后，会自动更新差异；两侧滚动条同步。</p><p>对比默认按数组索引匹配。忽略数组顺序时，未匹配项分别显示为删除与新增。大整数保留原始精度，重复字段需先消除歧义才能对比。</p><p>搜索覆盖完整文档，结果显示路径与数组下标。点击结果或图中字段可定位代码；当前位置栏跟随光标更新，可复制路径。结构图支持拖动、缩放，全部节点默认展开，无分页。光标移动时自动定位图中的对应 key；缩小为概览时显示节点轮廓，放大后显示字段。</p><p>关闭或刷新页面会清空内容，需要保留时请复制或下载。</p></div><div class="shortcut-list"><div><span>格式化</span><kbd>双击左键 / ⌘ Ctrl + Shift + F</kbd></div><div><span>搜索字段 / 值 / 路径</span><kbd>⌘ / Ctrl + F</kbd></div><div><span>下载 JSON</span><kbd>⌘ / Ctrl + S</kbd></div><div><span>撤销</span><kbd>⌘ / Ctrl + Z</kbd></div><div><span>切换编辑器 / 对比</span><kbd>Alt + 1 / 2</kbd></div></div></dialog>
 `;
 
 const state = { page: 'editor', indent: 2, busy: false, diff: null, filter: 'all', diffQuery: '', diffFresh: false, selectedDiff: null };

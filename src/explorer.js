@@ -8,25 +8,16 @@ const fmt = number => number.toLocaleString('zh-CN');
 
 export function createExplorer({ rpc, ensureDoc, getRevision, isSynced, getLength, locate, toast }) {
   let graphRequest = 0, searchRequest = 0, focusRequest = 0;
-  let timer, searchTimer, focusTimer, position = 0, focusRow, rootParent = -1;
-  let options = { rootId: 0, expanded: [], collapsed: [], pages: {} };
+  let timer, searchTimer, focusTimer, position = 0, focusRow;
+  let options = { collapsed: [] };
   let selectedSearch = -1;
   const current = version => version === getRevision();
   const graph = new GraphView($('#graph-canvas'), {
     select(row) { if (isSynced()) locate(row.offset, 0); },
     toggle(row) {
-      if (!row.open && graph.data.cards.length >= 80) {
-        options = { rootId: row.id, expanded: [], collapsed: [], pages: {} };
-        refreshGraph(true).catch(report);
-        return;
-      }
-      const add = row.open ? 'collapsed' : 'expanded', remove = row.open ? 'expanded' : 'collapsed';
-      options[add] = [...new Set([...options[add], row.id])];
-      options[remove] = options[remove].filter(id => id !== row.id);
+      options.collapsed = row.open ? [...new Set([...options.collapsed, row.id])] : options.collapsed.filter(id => id !== row.id);
       refreshGraph().catch(report);
     },
-    page(id, page) { options.pages[id] = page; refreshGraph().catch(report); },
-    focus(id) { options = { rootId: id, expanded: [], collapsed: [], pages: {} }; refreshGraph(true).catch(report); },
   });
   function mark(value) {
     const query = $('#node-search').value.trim();
@@ -57,6 +48,8 @@ export function createExplorer({ rpc, ensureDoc, getRevision, isSynced, getLengt
     $('#focus-path').title = row?.path || message;
     $('#copy-path').disabled = !row;
     $('#reveal-focus').disabled = !row;
+    $('#graph-path').textContent = row?.path || '$';
+    $('#graph-path').title = row?.path || '$';
     $('#focus-type').textContent = row ? ({ object: '对象', array: '数组', string: '字符串', number: '数字', boolean: '布尔值', null: 'null' }[row.type]) : '';
   }
   async function refreshGraph(recenter = false) {
@@ -64,24 +57,19 @@ export function createExplorer({ rpc, ensureDoc, getRevision, isSynced, getLengt
     const version = getRevision(), request = ++graphRequest;
     const { result } = await rpc('graph', { side: 'editor', ...options });
     if (!current(version) || request !== graphRequest) return;
-    rootParent = result.root.parent;
-    $('#graph-path').textContent = result.root.path;
-    $('#graph-path').title = result.root.path;
-    $('#graph-up').disabled = rootParent < 0;
-    $('#graph-root').disabled = result.root.id === 0;
     $('#graph-info').textContent = `${fmt(result.total)} 个节点`;
     graph.setData(result, recenter);
     if (focusRow) graph.select(focusRow.id);
   }
-  async function updateFocus(reveal = false) {
+  async function updateFocus(reveal = true) {
     if (!isSynced() || !getLength()) return;
     const version = getRevision(), request = ++focusRequest;
     const { result } = await rpc('focus', { side: 'editor', position });
     if (!current(version) || request !== focusRequest) return;
     setPath(result);
     if (!graph.has(result.id)) {
-      options = { rootId: result.containerId, expanded: [], collapsed: [], pages: { [result.containerId]: result.containerPage } };
-      await refreshGraph(true);
+      options.collapsed = options.collapsed.filter(id => !result.ancestors.includes(id));
+      await refreshGraph();
     }
     if (current(version) && request === focusRequest) graph.select(result.id, reveal);
   }
@@ -137,13 +125,12 @@ export function createExplorer({ rpc, ensureDoc, getRevision, isSynced, getLengt
   function changed() {
     graphRequest++; searchRequest++; focusRequest++;
     clearTimeout(timer); clearTimeout(searchTimer); clearTimeout(focusTimer);
-    options = { rootId: 0, expanded: [], collapsed: [], pages: {} };
+    options = { collapsed: [] };
     graph.clear(getLength() ? '正在解析…' : '粘贴 JSON 后查看结构');
     results.setRows([], true);
     $('#search-count').textContent = '';
     $('#graph-info').textContent = '';
     $('#graph-path').textContent = '$';
-    $('#graph-root').disabled = true; $('#graph-up').disabled = true;
     setPath(null, getLength() ? '正在解析…' : '$');
     if (getLength()) timer = setTimeout(refresh, 350);
   }
@@ -172,10 +159,9 @@ export function createExplorer({ rpc, ensureDoc, getRevision, isSynced, getLengt
   $('#copy-path').onclick = () => copyPath();
   $('#reveal-focus').onclick = () => updateFocus(true).catch(report);
   $('#graph-fit').onclick = () => graph.fit();
+  $('#graph-zoom').onclick = () => graph.resetZoom();
   $('#graph-in').onclick = () => graph.zoom(1.2);
   $('#graph-out').onclick = () => graph.zoom(1 / 1.2);
-  $('#graph-root').onclick = () => { options = { rootId: 0, expanded: [], collapsed: [], pages: {} }; refreshGraph(true).catch(report); };
-  $('#graph-up').onclick = () => { options = { rootId: Math.max(0, rootParent), expanded: [], collapsed: [], pages: {} }; refreshGraph(true).catch(report); };
   graph.clear();
   setPath(null, '$');
   return { refresh, changed, cursor, search: () => { $('#node-search').focus(); $('#node-search').select(); } };

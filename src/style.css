@@ -75,25 +75,23 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .graph-heading { display: flex; align-items: center; gap: 10px; min-height: 37px; padding: 5px 12px; font-size: 11px; border-bottom: 1px solid #e8ece4; background: #fafbf8; }
 .graph-heading strong { font-weight: 500; flex: none; }
 #graph-path { flex: 1; min-width: 0; overflow: auto; white-space: nowrap; scrollbar-width: thin; font: 11px var(--mono); color: #72856a; }
+.graph-follow { font-size: 10px; color: #8a9b7a; white-space: nowrap; }
 .graph-heading button { font-size: 11px; color: #648050; white-space: nowrap; padding: 4px; }
 .graph-area { flex: 1; min-height: 140px; position: relative; overflow: hidden; }
 .graph-canvas { position: absolute; inset: 0; overflow: hidden; background-color: #f7f8f5; background-image: radial-gradient(#dce2d5 .8px, transparent .8px); background-size: 18px 18px; cursor: grab; touch-action: none; }
 .graph-canvas.dragging { cursor: grabbing; }
 .graph-canvas[data-empty]::after { content: attr(data-empty); position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; color: #939e8a; pointer-events: none; }
 .graph-layer { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
-.graph-links { position: absolute; overflow: visible; pointer-events: none; }
-.graph-links path { fill: none; stroke: #bdcbbb; stroke-width: 1.5; }
+.graph-links { position: absolute; inset: 0; pointer-events: none; }
 .graph-card { position: absolute; border: 1px solid #cdd8c8; border-radius: 5px; background: #fff; overflow: hidden; box-shadow: 0 2px 5px #3a503008; }
 .graph-card.selected { border-color: #769b68; box-shadow: 0 0 0 2px #769b6826; }
 .graph-card-title { height: 36px; display: flex; align-items: center; padding: 0 5px 0 10px; background: #f0f5ec; border-bottom: 1px solid #dfe8d7; }
 .graph-title-select { flex: 1; display: flex; gap: 10px; align-items: center; min-width: 0; text-align: left; font: 12px var(--mono); color: #46643b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0; }
 .graph-title-select small { margin-left: auto; font: 10px -apple-system, BlinkMacSystemFont, sans-serif; color: #8a9b7e; flex: none; }
-.graph-focus.icon-btn { width: 26px; height: 26px; margin-left: 7px; }
-.graph-focus .icon { width: 12px; height: 12px; }
 .graph-field { height: 30px; display: flex; align-items: center; border-bottom: 1px solid #edf0e9; padding: 0 5px 0 10px; }
 .graph-field:last-child { border-bottom: 0; }
 .graph-field:hover { background: #f7faf3; }
-.graph-field.selected { background: #e8f1df; box-shadow: inset 3px 0 #7f9f6b; }
+.graph-field.selected { background: #d7eacb; box-shadow: inset 3px 0 #628a4d; }
 .graph-value { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; font: 11px var(--mono); padding: 5px 0; text-align: left; }
 .graph-value > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .graph-key { color: #53745f; max-width: 48%; flex-shrink: 0; }
@@ -102,8 +100,6 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .graph-toggle:hover { background: #dfead3; }
 .graph-toggle .icon { width: 12px; height: 12px; }
 .graph-empty-value { height: 30px; padding: 7px 10px; color: #8b9a7f; font: 11px var(--mono); }
-.graph-pager { height: 30px; display: flex; align-items: center; justify-content: space-between; padding: 0 5px; background: #fafbf8; font: 10px var(--mono); color: #809174; }
-.graph-pager button { padding: 3px 10px; font-size: 17px; }
 .graph-controls { position: absolute; bottom: 12px; left: 12px; display: flex; align-items: center; gap: 3px; background: #fffffff5; border: 1px solid #dfe6d9; border-radius: 5px; padding: 3px; box-shadow: 0 2px 8px #31442909; max-width: calc(100% - 24px); }
 .graph-controls .icon-btn { width: 27px; height: 27px; }
 #graph-zoom { font: 10px var(--mono); color: #6d805c; min-width: 34px; text-align: center; }
@@ -204,8 +200,8 @@ dialog::backdrop { background: #28332050; }
 .help-section { margin: 20px 0; font-size: 12px; line-height: 1.9; color: #879a71; }
 .shortcut-list > div { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid #edf2e3; font-size: 11px; color: #8aa072; }
 .shortcut-list kbd { font: 10px var(--mono); padding: 4px 6px; border: 1px solid #e4ebd8; background: #f4f8ed; border-radius: 4px; color: #8ca476; }
-.cm-line.cm-diff-removed { background: #fbf0eb; border-left: 2px solid #d9a48e; }
-.cm-line.cm-diff-added { background: #edf5e7; border-left: 2px solid #a7c58c; }
+.cm-line.cm-diff-removed { background: #d9a48e26; border-left: 2px solid #d9a48e; }
+.cm-line.cm-diff-added { background: #a7c58c26; border-left: 2px solid #a7c58c; }
 .cm-placeholder { color: #a3b099 !important; }
 .cm-search label { font-size: 11px; }
 .cm-search input[type=checkbox] { accent-color: #7e9a62; }

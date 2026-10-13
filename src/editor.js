@@ -14,9 +14,12 @@ const theme = EditorView.theme({
   '.cm-line': { padding: '0 24px 0 12px' },
   '.cm-gutters': { backgroundColor: '#ffffff', color: '#b0b7b1', border: 'none', padding: '0 0 0 14px', minWidth: '50px' },
   '.cm-lineNumbers .cm-gutterElement': { padding: '0 8px 0 0' },
-  '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: '#f6f8f4' },
+  '.cm-activeLine': { backgroundColor: '#89a87518' },
+  '.cm-activeLineGutter': { backgroundColor: '#f0f5ea' },
   '&.cm-focused': { outline: 'none' },
-  '.cm-selectionBackground, &.cm-focused .cm-selectionBackground': { backgroundColor: '#dce9de' },
+  '& .cm-selectionLayer .cm-selectionBackground': { backgroundColor: '#bed6ef', borderRadius: '2px' },
+  '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': { backgroundColor: '#91bff0', boxShadow: 'inset 0 0 0 1px #6498d0' },
+  '.cm-selectionMatch': { backgroundColor: '#d9e8f6', outline: '1px solid #a7c4df' },
   '.cm-cursor': { borderLeftColor: '#315f4c' },
   '.cm-foldGutter .cm-gutterElement': { padding: '0 4px' },
   '.cm-panels': { backgroundColor: '#f8f9f6', borderColor: '#e3e7e0', color: '#34423b' },
@@ -89,11 +92,11 @@ export function createEditor(parent, doc, onChange, onCursor, onFormat, onSave, 
       highlightActiveLine(), highlightSelectionMatches(), json(), theme, syntaxHighlighting(syntax),
       placeholder('粘贴 JSON'),
       EditorView.domEventHandlers({
-        dblclick(event) {
+        dblclick(event, editor) {
           if (event.button !== 0 || !event.target.closest('.cm-content')) return false;
-          event.preventDefault();
-          onFormat();
-          return true;
+          // 已排版的内容保留编辑器原生选词；单行 JSON 才触发双击格式化。
+          if (editor.state.doc.lines === 1 && /^[\s]*[\[{]/.test(editor.state.sliceDoc(0, Math.min(128, editor.state.doc.length)))) onFormat();
+          return false;
         },
       }),
       indent.of(indentUnit.of('  ')), EditorState.phrases.of(phrases),

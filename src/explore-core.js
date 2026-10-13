@@ -42,18 +42,23 @@ function describe(doc, entry) {
 }
 
 export function findFocus(doc, position) {
-  const { entries } = indexDocument(doc);
+  const { entries, lines } = indexDocument(doc);
   const pos = Math.max(0, Math.min(position, doc.text.length));
   const index = floorIndex(entries, pos, row => row.start);
   let entry = entries[index];
   const next = entries[index + 1];
   // 在行首缩进处也显示本行字段，空白行仍归属所在容器。
   if (next && next.start > pos && !/[^\t ]/.test(doc.text.slice(pos, next.start))) entry = next;
-  // 字段后的逗号、空白和容器的结束括号属于父对象。
-  while (entry.parent >= 0 && pos >= entry.end) entry = entries[entry.parent];
+  const lineStart = lines[floorIndex(lines, pos)];
+  // 值末尾、逗号及行尾空白仍归属本行字段；结束括号则回到对应容器。
+  while (entry.parent >= 0 && pos >= entry.end) {
+    if (!/[}\]]/.test(doc.text[pos] || '') && entry.end > lineStart && !/[^\t ,\r]/.test(doc.text.slice(entry.end, pos))) break;
+    entry = entries[entry.parent];
+  }
   const container = ['object', 'array'].includes(entry.node.type) ? entry : entries[entry.parent] || entry;
-  const containerPage = entry.id === container.id ? 0 : Math.floor(floorIndex(container.children, entry.id) / 10);
-  return { ...describe(doc, entry), containerId: container.id, containerPage };
+  const ancestors = [];
+  for (let parent = entry.parent; parent >= 0; parent = entries[parent].parent) ancestors.push(parent);
+  return { ...describe(doc, entry), containerId: container.id, ancestors };
 }
 
 export function searchDocument(doc, query) {
@@ -77,25 +82,21 @@ export function searchDocument(doc, query) {
   return rows;
 }
 
-export function graphDocument(doc, { rootId = 0, expanded = [], collapsed = [], pages = {} } = {}) {
+export function graphDocument(doc, { collapsed = [] } = {}) {
   const { entries } = indexDocument(doc);
-  let root = entries[rootId] || entries[0];
-  if (!['object', 'array'].includes(root.node.type) && root.parent >= 0) root = entries[root.parent];
-  const open = new Set(expanded), closed = new Set(collapsed);
+  const root = entries[0], closed = new Set(collapsed);
   const cards = [], edges = [], queue = [{ entry: root, depth: 0 }];
-  const pageSize = 10, maxCards = 80;
   for (let cursor = 0; cursor < queue.length; cursor++) {
     const { entry, depth } = queue[cursor];
-    const page = Math.min(Math.max(0, pages[entry.id] || 0), Math.max(0, Math.ceil(entry.children.length / pageSize) - 1));
-    const ids = entry.children.slice(page * pageSize, (page + 1) * pageSize);
-    const rows = ids.map(id => describe(doc, entries[id]));
-    const card = { ...describe(doc, entry), depth, page, pages: Math.max(1, Math.ceil(entry.children.length / pageSize)), rows };
+    const rows = entry.children.map(id => describe(doc, entries[id]));
+    const card = { ...describe(doc, entry), depth, rows };
     cards.push(card);
-    for (const row of rows) {
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+      const row = rows[rowIndex];
       row.expandable = (row.type === 'object' || row.type === 'array') && row.count > 0;
-      row.open = row.expandable && !closed.has(row.id) && (depth < 2 || open.has(row.id)) && queue.length < maxCards;
+      row.open = row.expandable && !closed.has(row.id);
       if (row.open) {
-        edges.push({ from: entry.id, to: row.id, row: rows.indexOf(row) });
+        edges.push({ from: entry.id, to: row.id, row: rowIndex });
         queue.push({ entry: entries[row.id], depth: depth + 1 });
       }
     }
