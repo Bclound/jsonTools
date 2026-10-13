@@ -14,7 +14,7 @@ export function location(text, offset) {
 }
 
 export function parseDocument(text) {
-  if (!text.trim()) throw Object.assign(new Error('请先输入或导入 JSON'), { offset: 0, line: 1, column: 1 });
+  if (!text.trim()) throw Object.assign(new Error('请先输入 JSON'), { offset: 0, line: 1, column: 1 });
   // 在递归解析前限制嵌套深度，避免异常输入耗尽调用栈。
   const scanner = createScanner(text, false);
   let depth = 0;
@@ -209,4 +209,30 @@ export function compareDocuments(left, right, { ignoreArrayOrder = false } = {})
     }
   }
   return { rows, counts };
+}
+
+export function compareInputDocuments(left, right, options = {}, documents = new Map()) {
+  const result = { compared: false, rows: [], counts: { added: 0, removed: 0, changed: 0 }, errors: {}, meta: {} };
+  for (const [side, text] of [['left', left], ['right', right]]) {
+    if (!text.trim()) { documents.delete(side); continue; }
+    try {
+      let doc = documents.get(side);
+      if (!doc || doc.text !== text) {
+        doc = parseDocument(text);
+        documents.set(side, doc);
+      }
+      result.meta[side] = { duplicates: doc.duplicates.length };
+    } catch (error) {
+      documents.delete(side);
+      result.errors[side] = { message: error.message, offset: error.offset, line: error.line, column: error.column };
+    }
+  }
+  if (Object.keys(result.errors).length) result.message = '请修正 JSON 格式';
+  else if (!documents.has('left') || !documents.has('right')) result.message = '等待两侧输入 JSON';
+  else {
+    try {
+      Object.assign(result, compareDocuments(documents.get('left'), documents.get('right'), options), { compared: true });
+    } catch (error) { result.message = error.message; }
+  }
+  return result;
 }

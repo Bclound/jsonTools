@@ -1,4 +1,4 @@
-import { parseDocument, formatDocument, compactDocument, treeRows, compareDocuments } from './core.js';
+import { parseDocument, formatDocument, compactDocument, treeRows, compareInputDocuments } from './core.js';
 
 const documents = new Map();
 self.onmessage = ({ data }) => {
@@ -11,9 +11,8 @@ self.onmessage = ({ data }) => {
       const doc = parseDocument(text);
       documents.set(side, doc);
       result = { rootOffset: doc.root.offset, nodes: doc.nodes, lines: doc.lines, bytes: new TextEncoder().encode(text).length, duplicates: doc.duplicates.length };
-    } else if (operation === 'compare') {
-      if (!documents.has('left') || !documents.has('right')) throw new Error('请先校验两侧 JSON');
-      result = compareDocuments(documents.get('left'), documents.get('right'), options);
+    } else if (operation === 'compare-input') {
+      result = compareInputDocuments(options.left, options.right, options, documents);
     } else {
       const doc = documents.get(side);
       if (!doc) throw new Error('请先输入有效的 JSON');

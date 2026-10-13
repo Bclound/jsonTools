@@ -1,5 +1,5 @@
 import { EditorState, Compartment, StateEffect, StateField } from '@codemirror/state';
-import { EditorView, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, keymap, highlightActiveLine, drawSelection, dropCursor, rectangularSelection, Decoration, ViewPlugin } from '@codemirror/view';
+import { EditorView, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, keymap, highlightActiveLine, drawSelection, dropCursor, rectangularSelection, Decoration, ViewPlugin, placeholder } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { bracketMatching, foldGutter, foldKeymap, indentOnInput, syntaxHighlighting, HighlightStyle, indentUnit } from '@codemirror/language';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
@@ -87,6 +87,15 @@ export function createEditor(parent, doc, onChange, onCursor, onFormat, onSave, 
       diffRanges, diffHighlights, lineNumbers(), highlightActiveLineGutter(), highlightSpecialChars(), history(), foldGutter(),
       drawSelection(), dropCursor(), indentOnInput(), bracketMatching(), closeBrackets(), rectangularSelection(),
       highlightActiveLine(), highlightSelectionMatches(), json(), theme, syntaxHighlighting(syntax),
+      placeholder('粘贴 JSON'),
+      EditorView.domEventHandlers({
+        dblclick(event) {
+          if (event.button !== 0 || !event.target.closest('.cm-content')) return false;
+          event.preventDefault();
+          onFormat();
+          return true;
+        },
+      }),
       indent.of(indentUnit.of('  ')), EditorState.phrases.of(phrases),
       EditorView.contentAttributes.of({ 'aria-label': label, spellcheck: 'false', autocorrect: 'off', autocapitalize: 'off' }),
       keymap.of([
@@ -103,4 +112,28 @@ export function createEditor(parent, doc, onChange, onCursor, onFormat, onSave, 
   view.setDiff = ranges => view.dispatch({ effects: setDiff.of(ranges.sort((a, b) => a.from - b.from)) });
   view.setIndent = spaces => view.dispatch({ effects: indent.reconfigure(indentUnit.of(' '.repeat(spaces))) });
   return view;
+}
+
+export function linkEditorScroll(left, right) {
+  let source = null;
+  let frame;
+  let paused = 0;
+  for (const [from, to] of [[left.scrollDOM, right.scrollDOM], [right.scrollDOM, left.scrollDOM]]) {
+    from.addEventListener('scroll', () => {
+      if (paused || source === to || !from.clientHeight || !to.clientHeight) return;
+      source = from;
+      for (const [position, size, client] of [['scrollTop', 'scrollHeight', 'clientHeight'], ['scrollLeft', 'scrollWidth', 'clientWidth']]) {
+        const range = from[size] - from[client];
+        const target = range > 0 ? from[position] / range * Math.max(0, to[size] - to[client]) : 0;
+        if (Math.abs(to[position] - target) > 1) to[position] = target;
+      }
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => { source = null; });
+    }, { passive: true });
+  }
+  // 点击某条差异时保留两侧各自的准确定位，不用滚动比例覆盖它。
+  return () => {
+    paused++;
+    requestAnimationFrame(() => requestAnimationFrame(() => { paused--; }));
+  };
 }
