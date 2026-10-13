@@ -27,7 +27,7 @@ export function createExplorer({ rpc, ensureDoc, getRevision, isSynced, getLengt
     if (at < 0) return esc(value);
     return `${esc(value.slice(0, at))}<mark>${esc(value.slice(at, at + query.length))}</mark>${esc(value.slice(at + query.length))}`;
   }
-  const results = new VirtualList($('#search-list'), { rowHeight: 72, emptyText: '没有匹配的字段、值或路径', renderRow: (row, index) => {
+  const results = new VirtualList($('#search-list'), { rowHeight: 72, variableHeight: true, emptyText: '没有匹配的字段、值或路径', renderRow: (row, index) => {
     const el = document.createElement('div');
     el.className = `search-result${selectedSearch === index ? ' selected' : ''}`;
     el.innerHTML = `<button class="search-hit" title="${esc(row.path)}\n${esc(row.value)}"><span class="search-hit-path">${mark(row.path)}</span><span class="search-hit-value type-${row.type}">${mark(row.value)}</span><span class="search-hit-meta">${row.match} · 第 ${fmt(row.line)} 行</span></button><button class="icon-btn search-copy" aria-label="复制路径 ${esc(row.path)}" title="复制完整路径">${icon('copy')}</button>`;
