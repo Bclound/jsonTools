@@ -41,6 +41,24 @@ test('重复字段按原文位置分别显示，路径不会被覆盖', () => {
   assert.equal(findFocus(doc, rows[1].offset).value, '"b"');
 });
 
+test('关键词只匹配字段或值，祖先路径不带出子项，完整路径精确定位', () => {
+  const doc = parseDocument(JSON.stringify({ fields: [
+    { field_options: { fullscreen: false, display: true, nested: { label: '普通字段' } } },
+    { field_options: { fullscreen: true, display: false } },
+    { label: 'field_options 配置说明' },
+  ] }));
+  assert.deepEqual(searchDocument(doc, ' FIELD_OPTIONS ').map(row => [row.path, row.match]), [
+    ['$.fields[0].field_options', '字段'],
+    ['$.fields[1].field_options', '字段'],
+    ['$.fields[2].label', '值'],
+  ]);
+  assert.equal(searchDocument(doc, 'display').length, 2);
+  assert.deepEqual(searchDocument(doc, '$.fields[0].field_options').map(row => [row.path, row.match]), [
+    ['$.fields[0].field_options', '路径'],
+  ]);
+  assert.deepEqual(searchDocument(doc, '$.fields[0].missing'), []);
+});
+
 test('结构图默认完整展开，全部数组元素与深层字段无分页', () => {
   const doc = parseDocument(JSON.stringify({ fields: Array.from({ length: 35 }, (_, id) => ({ id, settings: { required: true } })) }));
   const graph = graphDocument(doc);

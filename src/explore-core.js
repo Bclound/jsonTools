@@ -70,7 +70,7 @@ export function searchDocument(doc, query) {
     const value = isValue ? (entry.node.type === 'string' ? entry.node.value : doc.text.slice(entry.node.offset, entry.end)) : '';
     const match = String(entry.key).toLocaleLowerCase().includes(needle) ? '字段'
       : isValue && value.toLocaleLowerCase().includes(needle) ? '值'
-      : entry.path.toLocaleLowerCase().includes(needle) ? '路径' : '';
+      : entry.path.toLocaleLowerCase() === needle ? '路径' : '';
     if (!match) continue;
     const row = describe(doc, entry);
     if (match === '值' && value.length > 160) {
