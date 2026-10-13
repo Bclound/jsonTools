@@ -1,4 +1,5 @@
 import { parseDocument, formatDocument, compactDocument, treeRows, compareInputDocuments } from './core.js';
+import { findFocus, searchDocument, graphDocument } from './explore-core.js';
 
 const documents = new Map();
 self.onmessage = ({ data }) => {
@@ -19,6 +20,9 @@ self.onmessage = ({ data }) => {
       if (operation === 'format') result = formatDocument(doc, options.indent);
       else if (operation === 'compact') result = compactDocument(doc);
       else if (operation === 'tree') result = treeRows(doc, options.expanded, options.query);
+      else if (operation === 'focus') result = findFocus(doc, options.position);
+      else if (operation === 'search') result = searchDocument(doc, options.query);
+      else if (operation === 'graph') result = graphDocument(doc, options);
       else throw new Error('未知操作');
     }
     self.postMessage({ id, result, elapsed: performance.now() - start });

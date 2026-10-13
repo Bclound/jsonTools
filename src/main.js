@@ -1,10 +1,12 @@
 import './style.css';
 import { EditorView } from '@codemirror/view';
 import { undo } from '@codemirror/commands';
+import { foldedRanges, unfoldEffect } from '@codemirror/language';
 import { createEditor, linkEditorScroll } from './editor.js';
 import { createAutoCompare } from './auto-compare.js';
 import { VirtualList } from './virtual-list.js';
 import { icon } from './icons.js';
+import { createExplorer } from './explorer.js';
 
 const $ = selector => document.querySelector(selector);
 const esc = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -17,7 +19,7 @@ $('#app').innerHTML = `
   <header class="app-header">
     <a class="app-brand" href="#editor" data-action="nav-editor" aria-label="JSON 工具">${icon('braces')}<span>JSON</span></a>
     <nav class="tool-tabs" aria-label="工具切换">
-      <button class="active" data-action="nav-editor" aria-current="page">格式化</button>
+      <button class="active" data-action="nav-editor" aria-current="page">编辑器</button>
       <button data-action="nav-diff">对比</button>
     </nav>
     <div class="header-actions"><span>双击代码区格式化</span>${iconButton('keyboard', '快捷键与使用说明', 'help')}</div>
@@ -27,11 +29,20 @@ $('#app').innerHTML = `
       <div class="workbench editor-workbench">
         <div class="toolbar">
           <div class="toolbar-main">${button('format', '格式化', 'format', 'primary', '左键双击代码区，或 ⌘ / Ctrl + Shift + F')}${button('compact', '压缩', 'compact')}${button('check', '校验', 'validate')}<span class="divider"></span><select id="indent" aria-label="缩进空格数"><option value="2">2 空格</option><option value="4">4 空格</option><option value="8">8 空格</option></select></div>
-          <div class="toolbar-end"><div class="view-tabs" role="tablist" aria-label="JSON 视图"><button class="active" id="code-tab" role="tab" aria-selected="true" data-action="view-code">${icon('code')}代码</button><button id="tree-tab" role="tab" aria-selected="false" data-action="view-tree">${icon('tree')}树形</button></div><span class="divider"></span>${iconButton('copy', '复制 JSON', 'copy')}${iconButton('download', '下载 JSON', 'download')}${iconButton('trash', '清空 JSON（可撤销）', 'clear')}</div>
+          <div class="toolbar-end">${button('search', '搜索', 'search', '', '搜索字段、值或路径 · ⌘ / Ctrl + F')}<span class="divider"></span>${iconButton('copy', '复制 JSON', 'copy')}${iconButton('download', '下载 JSON', 'download')}${iconButton('trash', '清空 JSON（可撤销）', 'clear')}</div>
         </div>
         <div class="error-banner" id="editor-error" hidden></div>
-        <div class="editor-body" id="editor-body"><div class="code-pane"><div class="editor-host" id="editor-host"></div></div><aside class="outline"><div class="outline-header"><span>结构</span>${iconButton('expand', '切换完整树形视图', 'view-tree')}</div><div id="outline-list" class="virtual-list outline-list"></div><div class="outline-footer" id="outline-footer">0 个节点</div></aside></div>
-        <div class="full-tree" id="full-tree" hidden><div class="tree-toolbar"><label class="search-field">${icon('search')}<input id="tree-search" placeholder="搜索字段、值或路径" aria-label="搜索树形节点" /></label><div>${button('expand', '展开', 'expand-tree', 'quiet')}${button('fold', '收起', 'collapse-tree', 'quiet')}</div></div><div class="tree-column-header"><span>字段 / 路径</span><span>值</span><span>类型</span></div><div id="tree-list" class="virtual-list tree-list"></div><div class="tree-results" id="tree-results"></div></div>
+        <div class="focus-bar"><span class="focus-label">当前位置</span><code id="focus-path" aria-live="polite">$</code><span id="focus-type"></span><button class="icon-btn" id="copy-path" aria-label="复制当前位置路径" title="复制完整路径">${icon('copy')}</button><button class="icon-btn" id="reveal-focus" aria-label="在结构图中定位当前字段" title="在结构图中定位">${icon('tree')}</button></div>
+        <div class="editor-body" id="editor-body">
+          <div class="code-pane"><div class="editor-host" id="editor-host"></div></div>
+          <div id="editor-splitter" class="splitter" role="separator" aria-label="调整代码区域宽度" aria-orientation="vertical" aria-valuemin="25" aria-valuemax="75" aria-valuenow="44" tabindex="0"></div>
+          <aside class="explorer-pane" aria-label="JSON 结构与搜索">
+            <div class="explorer-search"><label class="search-field">${icon('search')}<input id="node-search" placeholder="搜索字段、值或路径" aria-label="搜索字段、值或路径" autocomplete="off" /></label><button class="icon-btn" id="clear-search" aria-label="清空搜索" title="清空搜索">${icon('close')}</button></div>
+            <div class="graph-heading"><strong>结构图</strong><code id="graph-path">$</code><button id="graph-up" title="查看上一级" disabled>上一级</button><button id="graph-root" title="返回根节点" disabled>根节点</button></div>
+            <div class="graph-area"><div id="graph-canvas" class="graph-canvas" tabindex="0" role="region" aria-label="JSON 结构图，可拖动平移、滚轮缩放"></div><div class="graph-controls"><button class="icon-btn" id="graph-fit" title="适应画布" aria-label="适应画布">${icon('expand')}</button><span class="divider"></span><button class="icon-btn" id="graph-out" title="缩小" aria-label="缩小结构图">−</button><span id="graph-zoom">100%</span><button class="icon-btn" id="graph-in" title="放大" aria-label="放大结构图">+</button><span id="graph-info"></span></div></div>
+            <section class="search-results" id="search-results" aria-label="搜索结果" hidden><div class="search-results-heading"><strong>搜索结果 <span id="search-count" role="status"></span></strong><span>Enter 下一项 · Shift + Enter 上一项</span></div><div id="search-list" class="virtual-list"></div></section>
+          </aside>
+        </div>
         <div class="statusbar"><div class="status-group"><span class="validation-status" id="editor-status">待输入</span><span class="stat-separator"></span><span id="editor-lines"></span><span id="editor-size"></span></div><div class="status-group"><span id="cursor-position">行 1，列 1</span><span class="stat-separator"></span><span>UTF-8</span></div></div>
       </div>
     </section>
@@ -43,11 +54,12 @@ $('#app').innerHTML = `
   </main>
   <div class="busy-indicator" id="busy" role="status" hidden><span class="spinner"></span><span id="busy-text"></span><button data-action="cancel">取消</button></div>
   <div id="toast" role="status" hidden></div>
-  <dialog id="help-dialog"><div class="dialog-title"><h2>快捷键与使用说明</h2>${iconButton('close', '关闭说明', 'close-help')}</div><div class="help-section"><p>直接粘贴 JSON。在任意代码区双击左键，即可格式化当前内容。输入或修改对比选项后，会自动更新差异；两侧滚动条同步。</p><p>对比默认按数组索引匹配。忽略数组顺序时，未匹配项分别显示为删除与新增。大整数保留原始精度，重复字段需先消除歧义才能对比。</p><p>关闭或刷新页面会清空内容，需要保留时请复制或下载。</p></div><div class="shortcut-list"><div><span>格式化</span><kbd>双击左键 / ⌘ Ctrl + Shift + F</kbd></div><div><span>查找 / 替换</span><kbd>⌘ / Ctrl + F</kbd></div><div><span>下载 JSON</span><kbd>⌘ / Ctrl + S</kbd></div><div><span>撤销</span><kbd>⌘ / Ctrl + Z</kbd></div><div><span>切换格式化 / 对比</span><kbd>Alt + 1 / 2</kbd></div></div></dialog>
+  <dialog id="help-dialog"><div class="dialog-title"><h2>快捷键与使用说明</h2>${iconButton('close', '关闭说明', 'close-help')}</div><div class="help-section"><p>直接粘贴 JSON。在任意代码区双击左键，即可格式化当前内容。输入或修改对比选项后，会自动更新差异；两侧滚动条同步。</p><p>对比默认按数组索引匹配。忽略数组顺序时，未匹配项分别显示为删除与新增。大整数保留原始精度，重复字段需先消除歧义才能对比。</p><p>搜索覆盖完整文档，结果显示路径与数组下标。点击结果或图中字段可定位代码；当前位置栏跟随光标更新，可复制路径。结构图支持拖动、缩放，较长对象与数组按组显示。</p><p>关闭或刷新页面会清空内容，需要保留时请复制或下载。</p></div><div class="shortcut-list"><div><span>格式化</span><kbd>双击左键 / ⌘ Ctrl + Shift + F</kbd></div><div><span>搜索字段 / 值 / 路径</span><kbd>⌘ / Ctrl + F</kbd></div><div><span>下载 JSON</span><kbd>⌘ / Ctrl + S</kbd></div><div><span>撤销</span><kbd>⌘ / Ctrl + Z</kbd></div><div><span>切换编辑器 / 对比</span><kbd>Alt + 1 / 2</kbd></div></div></dialog>
 `;
 
-const state = { page: 'editor', view: 'code', indent: 2, busy: false, treeExpanded: new Set([0]), treeAll: false, treeQuery: '', diff: null, filter: 'all', diffQuery: '', diffFresh: false, selectedDiff: null };
+const state = { page: 'editor', indent: 2, busy: false, diff: null, filter: 'all', diffQuery: '', diffFresh: false, selectedDiff: null };
 const docs = {};
+let explorer;
 let worker, sequence = 0;
 const pending = new Map();
 function startWorker() {
@@ -138,27 +150,10 @@ function onChange(side) {
   doc.stats = null;
   $(`#${side}-error`).hidden = true;
   const length = doc.view.state.doc.length;
-  setValidation(side, !length ? '待输入' : side === 'editor' && length > 250000 ? '待格式化 / 校验' : '待校验');
+  setValidation(side, !length ? '待输入' : '待校验');
   updateStats(side);
   if (side !== 'editor') { scheduleComparison(); return; }
-  clearTimeout(doc.timer);
-  if (!length) {
-    treeRequest++;
-    outlineList.setRows([]);
-    treeList.setRows([]);
-    $('#outline-footer').textContent = '0 个节点';
-    $('#tree-results').textContent = '';
-    return;
-  }
-  $('#outline-footer').textContent = '待更新';
-  $('#outline-list').classList.add('stale-results');
-  $('#tree-list').classList.add('stale-results');
-  if (length <= 250000) {
-    doc.timer = setTimeout(() => {
-      if (state.busy) return;
-      ensureDoc(side).then(refreshTree).catch(() => {});
-    }, 350);
-  }
+  explorer?.changed();
 }
 for (const side of ['editor', 'left', 'right']) {
   docs[side] = { revision: 0, synced: -1, dirty: false, filename: side === 'editor' ? 'data.json' : side === 'left' ? 'original.json' : 'target.json' };
@@ -166,24 +161,27 @@ for (const side of ['editor', 'left', 'right']) {
     if (side !== 'editor') return;
     const pos = view.state.selection.main.head, line = view.state.doc.lineAt(pos);
     $('#cursor-position').textContent = `行 ${fmt(line.number)}，列 ${fmt(pos - line.from + 1)}`;
-  }, () => transform('format', side), () => download(side), side === 'editor' ? 'JSON 代码编辑器' : side === 'left' ? '原始 JSON 代码编辑器' : '目标 JSON 代码编辑器');
+    explorer?.cursor(view);
+  }, () => transform('format', side), () => download(side), side === 'editor' ? 'JSON 代码编辑器' : side === 'left' ? '原始 JSON 代码编辑器' : '目标 JSON 代码编辑器', side === 'editor' ? () => explorer?.search() : null);
   updateStats(side);
 }
 const pauseScrollSync = linkEditorScroll(docs.left.view, docs.right.view);
 function setText(side, text) {
   docs[side].view.dispatch({ changes: { from: 0, to: docs[side].view.state.doc.length, insert: text }, selection: { anchor: 0 }, scrollIntoView: true });
-  if (side === 'editor') { state.treeExpanded = new Set([0]); state.treeAll = false; state.treeQuery = ''; $('#tree-search').value = ''; }
 }
 async function ensureDoc(side) {
   const doc = docs[side];
   if (doc.synced === doc.revision) return doc.stats;
   const revision = doc.revision;
   try {
-    const { result } = await rpc('load', { side, text: getText(side) });
+    if (doc.loadingRevision !== revision || !doc.loading) {
+      doc.loadingRevision = revision;
+      doc.loading = rpc('load', { side, text: getText(side) });
+    }
+    const { result } = await doc.loading;
     if (revision !== doc.revision) throw new Error('内容已更改，请重新执行操作');
     doc.synced = revision;
     doc.stats = result;
-    if (side === 'editor') state.treeExpanded.add(result.rootOffset);
     $(`#${side}-error`).hidden = true;
     setValidation(side, result.duplicates ? `存在 ${result.duplicates} 个重复字段` : '校验通过', result.duplicates ? 'warning' : 'valid');
     updateStats(side);
@@ -192,12 +190,16 @@ async function ensureDoc(side) {
     if (revision === doc.revision && error.offset !== undefined) showError(side, error);
     else if (revision === doc.revision && !error.message.startsWith('已取消')) showError(side, error);
     throw error;
+  } finally {
+    if (doc.loadingRevision === revision) doc.loading = null;
   }
 }
 function locate(side, offset = 0, length = 0) {
   const view = docs[side].view;
   const from = Math.min(offset, view.state.doc.length);
-  view.dispatch({ selection: { anchor: from, head: Math.min(from + length, view.state.doc.length) }, effects: EditorView.scrollIntoView(from, { y: 'center' }) });
+  const effects = [EditorView.scrollIntoView(from, { y: 'center' })];
+  foldedRanges(view.state).between(from, from, (start, end) => effects.push(unfoldEffect.of({ from: start, to: end })));
+  view.dispatch({ selection: { anchor: from, head: Math.min(from + length, view.state.doc.length) }, effects });
   view.focus();
 }
 async function transform(operation, side = 'editor') {
@@ -208,64 +210,41 @@ async function transform(operation, side = 'editor') {
     if (revision !== docs[side].revision) throw new Error('内容已更改，未覆盖当前文档，请重试');
     if (result !== getText(side)) setText(side, result);
     await ensureDoc(side);
-    if (side === 'editor') await refreshTree();
+    if (side === 'editor') await explorer.refresh();
     toast(`${operation === 'format' ? '格式化' : '压缩'}完成 · ${Math.round(elapsed)} ms`);
   });
 }
-function treeRow(row, compact = false) {
-  const el = document.createElement('div');
-  el.className = `tree-row ${compact ? 'compact' : ''}`;
-  el.setAttribute('role', 'treeitem');
-  el.setAttribute('aria-level', String(row.depth + 1));
-  if (row.count) el.setAttribute('aria-expanded', String(row.open));
-  el.tabIndex = 0;
-  const container = row.type === 'object' || row.type === 'array';
-  el.title = `${row.path}\n${row.value}`;
-  const key = typeof row.key === 'number' ? `[${row.key}]` : row.key;
-  el.innerHTML = `<span class="tree-key" style="padding-left:${Math.min(row.depth, compact ? 8 : 30) * (compact ? 15 : 20) + 12}px"><span class="tree-chevron ${row.open ? 'open' : ''}">${row.count ? icon('chevron') : '<span class="leaf-dot"></span>'}</span><span>${esc(key)}</span>${compact && container ? `<small>${row.count}</small>` : ''}</span>${compact ? (!container ? `<span class="tree-mini-value type-${row.type}">${esc(row.value)}</span>` : '') : `<span class="tree-value type-${row.type}">${esc(row.value)}</span><span class="tree-type">${row.type}</span>`}`;
-  const activate = () => {
-    if ($('#tree-list').classList.contains('stale-results')) { toast('内容已更改，请重新打开树形视图更新'); return; }
-    if (row.count) toggleTree(row);
-    else { showView('code'); locate('editor', row.offset, row.length); }
-  };
-  el.onclick = activate;
-  el.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); activate(); } };
-  el.ondblclick = () => { if (docs.editor.synced === docs.editor.revision) { showView('code'); locate('editor', row.offset, row.length); } };
-  return el;
+explorer = createExplorer({
+  rpc, ensureDoc: () => ensureDoc('editor'), getRevision: () => docs.editor.revision,
+  isSynced: () => docs.editor.synced === docs.editor.revision,
+  getLength: () => docs.editor.view.state.doc.length,
+  locate: (offset, length) => locate('editor', offset, length), toast,
+});
+const splitter = $('#editor-splitter');
+function setSplit(percent) {
+  const value = Math.max(25, Math.min(75, percent));
+  $('#editor-body').style.setProperty('--code-width', `${value}%`);
+  splitter.setAttribute('aria-valuenow', String(Math.round(value)));
+  docs.editor.view.requestMeasure();
 }
-const outlineList = new VirtualList($('#outline-list'), { rowHeight: 32, renderRow: row => treeRow(row, true), emptyText: '' });
-const treeList = new VirtualList($('#tree-list'), { rowHeight: 36, renderRow: row => treeRow(row), emptyText: '没有匹配的字段、值或路径' });
-$('#outline-list').setAttribute('role', 'tree');
-$('#tree-list').setAttribute('role', 'tree');
-let treeRequest = 0;
-async function refreshTree() {
-  const request = ++treeRequest;
-  if (!docs.editor.view.state.doc.length) { treeList.setRows([]); outlineList.setRows([]); return; }
-  await ensureDoc('editor');
-  const revision = docs.editor.revision;
-  const { result } = await rpc('tree', { side: 'editor', expanded: state.treeAll ? 'all' : [...state.treeExpanded], query: state.treeQuery });
-  if (request !== treeRequest || revision !== docs.editor.revision) return;
-  treeList.setRows(result);
-  outlineList.setRows(result);
-  $('#tree-list').classList.remove('stale-results');
-  $('#outline-list').classList.remove('stale-results');
-  $('#outline-footer').innerHTML = `${icon('tree')} ${fmt(docs.editor.stats.nodes)} 个节点 · 点击展开`;
-  $('#tree-results').textContent = `${fmt(result.length)} 个可见节点${state.treeQuery ? ' · 搜索结果包含完整路径（悬停查看）' : ' · 双击节点可定位到代码'}`;
-}
-function toggleTree(row) {
-  if (state.treeQuery) { toast('搜索时自动展开匹配项；清空搜索后可折叠'); return; }
-  if (state.treeAll) { state.treeExpanded = new Set(treeList.rows.filter(r => r.count).map(r => r.offset)); state.treeAll = false; }
-  if (state.treeExpanded.has(row.offset)) state.treeExpanded.delete(row.offset); else state.treeExpanded.add(row.offset);
-  refreshTree().catch(error => toast(error.message));
-}
-function showView(view) {
-  state.view = view;
-  $('#editor-body').hidden = view !== 'code';
-  $('#full-tree').hidden = view !== 'tree';
-  for (const type of ['code', 'tree']) { $(`#${type}-tab`).classList.toggle('active', type === view); $(`#${type}-tab`).setAttribute('aria-selected', String(type === view)); }
-  if (view === 'tree') task('正在生成树形视图…', refreshTree);
-  else docs.editor.view.requestMeasure();
-}
+splitter.onpointerdown = event => {
+  if (event.button !== 0) return;
+  splitter.setPointerCapture(event.pointerId);
+  splitter.classList.add('dragging');
+};
+splitter.onpointermove = event => {
+  if (!splitter.hasPointerCapture(event.pointerId)) return;
+  const rect = $('#editor-body').getBoundingClientRect();
+  setSplit((event.clientX - rect.left) / rect.width * 100);
+};
+splitter.onpointerup = () => splitter.classList.remove('dragging');
+splitter.onpointercancel = () => splitter.classList.remove('dragging');
+splitter.onkeydown = event => {
+  if (['ArrowLeft', 'ArrowRight'].includes(event.key)) {
+    event.preventDefault();
+    setSplit(Number(splitter.getAttribute('aria-valuenow')) + (event.key === 'ArrowLeft' ? -3 : 3));
+  }
+};
 function showPage(page) {
   state.page = page;
   $('#editor-page').hidden = page !== 'editor';
@@ -376,14 +355,12 @@ function clearDocument(side = 'editor') {
 }
 const actions = {
   'nav-editor': () => showPage('editor'), 'nav-diff': () => showPage('diff'),
-  'view-code': () => showView('code'), 'view-tree': () => showView('tree'),
+  search: () => explorer.search(),
   format: () => transform('format'), compact: () => transform('compact'),
-  validate: () => task('正在校验 JSON…', async () => { await ensureDoc('editor'); await refreshTree(); toast('校验完成'); }),
+  validate: () => task('正在校验 JSON…', async () => { await ensureDoc('editor'); await explorer.refresh(); toast('校验完成'); }),
   download: () => download(), copy: () => copy(),
   clear: () => clearDocument(),
   help: () => $('#help-dialog').showModal(), 'close-help': () => $('#help-dialog').close(), cancel,
-  'expand-tree': () => { state.treeAll = true; task('正在展开树形节点…', refreshTree); },
-  'collapse-tree': () => { state.treeAll = false; state.treeExpanded = new Set([docs.editor.stats?.rootOffset || 0]); task('正在更新树形视图…', refreshTree); },
   'export-diff': exportDiff,
   swap: () => { const left = getText('left'); setText('left', getText('right')); setText('right', left); },
 };
@@ -398,8 +375,6 @@ document.addEventListener('click', event => {
   if (action && actions[action]) actions[action]();
 });
 $('#indent').onchange = event => { state.indent = Number(event.target.value); for (const doc of Object.values(docs)) doc.view.setIndent(state.indent); };
-let treeTimer;
-$('#tree-search').oninput = event => { state.treeQuery = event.target.value; clearTimeout(treeTimer); treeTimer = setTimeout(() => refreshTree().catch(error => toast(error.message)), 200); };
 $('#diff-search').oninput = event => { state.diffQuery = event.target.value; filterDiff(); };
 $('#ignore-array').onchange = scheduleComparison;
 $('#help-dialog').addEventListener('click', event => { if (event.target === $('#help-dialog')) $('#help-dialog').close(); });
@@ -407,10 +382,8 @@ window.addEventListener('beforeunload', event => { if (Object.values(docs).some(
 window.addEventListener('keydown', event => {
   if (event.altKey && ['1', '2'].includes(event.key)) { event.preventDefault(); showPage(event.key === '1' ? 'editor' : 'diff'); }
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's' && !event.defaultPrevented) { event.preventDefault(); download(state.page === 'editor' ? 'editor' : 'left'); }
-  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'f' && state.view === 'tree' && state.page === 'editor') { event.preventDefault(); $('#tree-search').focus(); }
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'f' && state.page === 'editor') { event.preventDefault(); explorer.search(); }
 });
 window.addEventListener('dragover', event => { if (event.dataTransfer.types.includes('Files')) event.preventDefault(); });
 window.addEventListener('drop', event => { if (event.dataTransfer.files.length) event.preventDefault(); });
 if (location.hash === '#diff') showPage('diff');
-outlineList.setRows([]);
-treeList.setRows([]);

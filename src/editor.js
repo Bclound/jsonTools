@@ -79,7 +79,7 @@ const diffHighlights = ViewPlugin.fromClass(class {
     }
   }
 }, { decorations: plugin => plugin.decorations });
-export function createEditor(parent, doc, onChange, onCursor, onFormat, onSave, label) {
+export function createEditor(parent, doc, onChange, onCursor, onFormat, onSave, label, onSearch) {
   const indent = new Compartment();
   const view = new EditorView({
     parent,
@@ -99,6 +99,7 @@ export function createEditor(parent, doc, onChange, onCursor, onFormat, onSave, 
       indent.of(indentUnit.of('  ')), EditorState.phrases.of(phrases),
       EditorView.contentAttributes.of({ 'aria-label': label, spellcheck: 'false', autocorrect: 'off', autocapitalize: 'off' }),
       keymap.of([
+        ...(onSearch ? [{ key: 'Mod-f', run: () => { onSearch(); return true; } }] : []),
         { key: 'Mod-Shift-f', run: () => { onFormat(); return true; } },
         { key: 'Mod-s', run: () => { onSave(); return true; } },
         ...closeBracketsKeymap, ...defaultKeymap, ...searchKeymap, ...historyKeymap, ...foldKeymap, indentWithTab,
