@@ -1,4 +1,4 @@
-export const CARD_WIDTH = 274, CARD_HEADER = 36, FIELD_HEIGHT = 30;
+export const CARD_WIDTH = 340, CARD_HEADER = 36, FIELD_HEIGHT = 30;
 
 export function layoutGraph(data) {
   const cards = data.cards.map(card => ({ ...card, height: CARD_HEADER + Math.max(1, card.rows.length) * FIELD_HEIGHT, children: [] }));
@@ -11,7 +11,7 @@ export function layoutGraph(data) {
   const stack = [{ card: cards[0], top: 0 }];
   while (stack.length) {
     const { card, top } = stack.pop();
-    card.x = card.depth * 354;
+    card.x = card.depth * (CARD_WIDTH + 80);
     card.y = top + (card.span - card.height) / 2;
     let childTop = top;
     for (const child of card.children) { stack.push({ card: child, top: childTop }); childTop += child.span + 24; }

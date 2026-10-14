@@ -82,14 +82,22 @@ export function searchDocument(doc, query) {
   return rows;
 }
 
+function graphType(node) {
+  if (node.type !== 'array') return node.type;
+  // 只概括直接元素，不展开对象字段或递归生成庞大的类型声明。
+  const types = [...new Set((node.children || []).map(child => child.type === 'array' ? 'unknown[]' : child.type))].sort();
+  if (!types.length) return 'unknown[]';
+  return types.length === 1 ? `${types[0]}[]` : `(${types.join(' | ')})[]`;
+}
+
 export function graphDocument(doc, { collapsed = [] } = {}) {
   const { entries } = indexDocument(doc);
   const root = entries[0], closed = new Set(collapsed);
   const cards = [], edges = [], queue = [{ entry: root, depth: 0 }];
   for (let cursor = 0; cursor < queue.length; cursor++) {
     const { entry, depth } = queue[cursor];
-    const rows = entry.children.map(id => describe(doc, entries[id]));
-    const card = { ...describe(doc, entry), depth, rows };
+    const rows = entry.children.map(id => ({ ...describe(doc, entries[id]), tsType: graphType(entries[id].node) }));
+    const card = { ...describe(doc, entry), tsType: graphType(entry.node), depth, rows };
     cards.push(card);
     for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
       const row = rows[rowIndex];

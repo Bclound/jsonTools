@@ -82,6 +82,24 @@ test('标量与空容器也可显示、搜索和定位', () => {
   }
 });
 
+test('结构图类型区分空值与字符串，数组概括所有直接元素并保留折叠后的类型', () => {
+  const doc = parseDocument(JSON.stringify({ text: '123', value: 123, enabled: true, empty: null,
+    config: {}, pending: [], names: ['a', 'b'], rows: [{ id: 1 }],
+    mixed: [1, 'a', null, 'b'], matrix: [[1], ['a']], tail: [...Array(1000).fill(1), false] }));
+  const graph = graphDocument(doc);
+  assert.equal(graph.cards[0].tsType, 'object');
+  assert.deepEqual(graph.cards[0].rows.map(row => row.tsType), [
+    'string', 'number', 'boolean', 'null', 'object', 'unknown[]', 'string[]', 'object[]',
+    '(null | number | string)[]', 'unknown[][]', '(boolean | number)[]',
+  ]);
+  assert.equal(graph.cards.find(card => card.path === '$.names').tsType, 'string[]');
+  const closed = graphDocument(doc, { collapsed: graph.cards.slice(1).map(card => card.id) });
+  assert.deepEqual(closed.cards[0].rows.map(row => row.tsType), graph.cards[0].rows.map(row => row.tsType));
+  for (const [text, type] of [['null', 'null'], ['false', 'boolean'], ['0', 'number'], ['"hello"', 'string'], ['[]', 'unknown[]']]) {
+    assert.equal(graphDocument(parseDocument(text)).cards[0].tsType, type);
+  }
+});
+
 test('宽分支不截断卡片数量，图折叠不影响全局搜索结果', () => {
   const doc = parseDocument(JSON.stringify(Array.from({ length: 10 }, () => Array.from({ length: 10 }, () => ({ deep: { same: 1 } })))));
   const graph = graphDocument(doc);

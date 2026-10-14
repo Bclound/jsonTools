@@ -149,7 +149,7 @@ export class GraphView {
       el.className = `graph-card${card.id === this.selected ? ' selected' : ''}`;
       el.style.cssText = `left:${card.x}px;top:${card.y}px;width:${WIDTH}px;height:${card.height}px`;
       el.setAttribute('aria-label', card.path);
-      el.innerHTML = `<div class="graph-card-title"><button class="graph-title-select" title="定位 ${esc(card.path)}">${esc(typeof card.key === 'number' ? `[${card.key}]` : card.key)}<small>${card.type === 'array' ? `数组 · ${card.count}` : card.type === 'object' ? `对象 · ${card.count}` : card.type}</small></button></div>`;
+      el.innerHTML = `<div class="graph-card-title"><button class="graph-title-select" title="定位 ${esc(card.path)}"><span class="graph-title-key">${esc(typeof card.key === 'number' ? `[${card.key}]` : card.key)}</span><span class="graph-type type-${card.type}" title="当前值类型：${esc(card.tsType)}">${esc(card.tsType)}</span>${card.type === 'array' || card.type === 'object' ? `<small>${card.count} ${card.type === 'array' ? '项' : '字段'}</small>` : ''}</button></div>`;
       el.querySelector('.graph-title-select').onclick = () => this.callbacks.select(card);
       const range = visibleFieldRange(card, bounds);
       for (let i = range.from; i < range.to; i++) {
@@ -158,7 +158,7 @@ export class GraphView {
         field.className = `graph-field${row.id === this.selected ? ' selected' : ''}`;
         field.style.cssText = `position:absolute;top:${HEADER + i * ROW}px;left:0;right:0`;
         field.dataset.path = row.path;
-        field.innerHTML = `<button class="graph-value" title="${esc(row.path)}: ${esc(row.value)}"><span class="graph-key">${esc(typeof row.key === 'number' ? `[${row.key}]` : row.key)}</span><span class="type-${row.type}">${esc(row.value)}</span></button>${row.expandable ? `<button class="graph-toggle" title="${row.open ? '收起' : '展开'} ${esc(row.path)}" aria-label="${row.open ? '收起' : '展开'} ${esc(row.path)}" aria-expanded="${row.open}">${icon(row.open ? 'fold' : 'plus')}</button>` : ''}`;
+        field.innerHTML = `<button class="graph-value" title="${esc(row.path)}: ${esc(row.value)}\n当前值类型：${esc(row.tsType)}"><span class="graph-field-content"><span class="graph-key">${esc(typeof row.key === 'number' ? `[${row.key}]` : row.key)}</span><span class="type-${row.type}">${esc(row.value)}</span></span><span class="graph-type type-${row.type}" title="当前值类型：${esc(row.tsType)}">${esc(row.tsType)}</span></button>${row.expandable ? `<button class="graph-toggle" title="${row.open ? '收起' : '展开'} ${esc(row.path)}" aria-label="${row.open ? '收起' : '展开'} ${esc(row.path)}" aria-expanded="${row.open}">${icon(row.open ? 'fold' : 'plus')}</button>` : ''}`;
         field.querySelector('.graph-value').onclick = () => this.callbacks.select(row);
         field.querySelector('.graph-toggle')?.addEventListener('click', () => this.callbacks.toggle(row));
         el.append(field);

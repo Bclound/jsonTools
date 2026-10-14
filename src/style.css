@@ -151,13 +151,16 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .graph-card.selected { border-color: var(--focus); box-shadow: 0 0 0 1px var(--graph-focus); }
 .graph-card-title { height: 36px; display: flex; align-items: center; padding: 0 5px 0 10px; background: var(--panel-header); border-bottom: 1px solid var(--border); }
 .graph-title-select { flex: 1; display: flex; gap: 10px; align-items: center; min-width: 0; text-align: left; font: 12px var(--mono); color: var(--key); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0; }
-.graph-title-select small { margin-left: auto; font: 10px -apple-system, BlinkMacSystemFont, sans-serif; color: var(--muted); flex: none; }
+.graph-title-key { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.graph-title-select small { font: 10px -apple-system, BlinkMacSystemFont, sans-serif; color: var(--muted); flex: none; }
 .graph-field { height: 30px; display: flex; align-items: center; border-bottom: 1px solid var(--border); padding: 0 5px 0 10px; }
 .graph-field:last-child { border-bottom: 0; }
 .graph-field:hover { background: var(--hover); }
 .graph-field.selected { background: var(--active); box-shadow: inset 3px 0 var(--accent); }
 .graph-value { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; font: 11px var(--mono); padding: 5px 0; text-align: left; }
-.graph-value > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.graph-field-content { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.graph-field-content > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.graph-type { flex: none; max-width: 118px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 10px/16px var(--mono); padding: 0 4px; border: 1px solid var(--border-strong); border-radius: 3px; background: var(--panel); }
 .graph-key { color: var(--key); max-width: 48%; flex-shrink: 0; }
 .graph-key::after { content: ':'; color: var(--accent); }
 .graph-toggle { flex: none; height: 22px; width: 23px; display: grid; place-items: center; color: var(--muted); border-radius: 3px; background: var(--hover); }
