@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseDocument } from '../src/core.js';
 import { findFocus, searchDocument, graphDocument } from '../src/explore-core.js';
-import { layoutGraph, visibleCards, visibleFieldRange, CARD_HEADER, FIELD_HEIGHT } from '../src/graph-layout.js';
+import { layoutGraph, visibleCards, visibleFieldRange, flowGraph, edgeCoordinates, CARD_WIDTH, CARD_HEADER, FIELD_HEIGHT } from '../src/graph-layout.js';
 
 test('光标路径包含数组下标和特殊键名，属性名和值都能定位', () => {
   const text = '{\n  "fields": [{"a.b": {"空 格": "目标值"}, "next": true}]\n}';
@@ -119,6 +119,12 @@ test('十二万行配置：完整图及长卡片按可见范围渲染，精确�
   assert.equal(graph.cards.length, 20001);
   assert.equal(graph.cards[0].rows.length, 20000);
   const layout = layoutGraph(graph);
+  const flow = flowGraph(layout);
+  assert.equal(flow.nodes.length, 20001);
+  assert.equal(flow.nodes[0].height, CARD_HEADER + 20000 * FIELD_HEIGHT);
+  assert.equal(flow.canvasEdges, true);
+  assert.equal(flow.edges.length, 0);
+  assert.equal(layout.edges.length, 20000);
   const lastField = graph.cards.at(-1).rows.find(row => row.key === 'label');
   const target = layout.targets.get(lastField.id);
   assert.equal(target.card.path, '$[19999]');
@@ -142,6 +148,28 @@ test('十二万行配置：完整图及长卡片按可见范围渲染，精确�
   assert.equal(range.to, 20000);
   assert.ok(range.to - range.from < 25);
   console.log(`路径索引与搜索：${doc.lines} 行，初始图 ${graph.cards.length} 张卡片，${Math.round(performance.now() - started)} ms`);
+});
+
+test('React Flow 节点和连线保留字段位置、重复字段标识及折叠状态', () => {
+  const doc = parseDocument('{"group":{"name":"a"},"group":{"name":"b"},"list":[{}]}');
+  const layout = layoutGraph(graphDocument(doc));
+  const flow = flowGraph(layout);
+  assert.equal(flow.canvasEdges, false);
+  assert.equal(new Set(flow.nodes.map(node => node.id)).size, layout.cards.length);
+  assert.equal(new Set(flow.edges.map(edge => edge.id)).size, layout.edges.length);
+  assert.equal(flow.nodes[0].width, CARD_WIDTH);
+  for (const [index, edge] of layout.edges.entries()) {
+    const { x, y, endX, endY } = edgeCoordinates(layout, edge);
+    assert.equal(y, layout.byId.get(edge.from).y + CARD_HEADER + (edge.row + .5) * FIELD_HEIGHT);
+    assert.equal(endY, layout.byId.get(edge.to).y + CARD_HEADER / 2);
+    assert.equal(flow.edges[index].source, String(edge.from));
+    assert.equal(flow.edges[index].target, String(edge.to));
+    assert.equal(flow.edges[index].data.path, `M ${x} ${y} C ${x + 42} ${y}, ${endX - 42} ${endY}, ${endX} ${endY}`);
+  }
+  const collapsed = layoutGraph(graphDocument(doc, { collapsed: layout.cards.slice(1).map(card => card.id) }));
+  assert.equal(flowGraph(collapsed).nodes.length, 1);
+  assert.equal(flowGraph(collapsed).edges.length, 0);
+  assert.equal(flowGraph(layoutGraph(graphDocument(parseDocument('null')))).nodes[0].data.tsType, 'null');
 });
 
 test('一级和嵌套字段：整行、值末尾、逗号后均保留具体字段路径', () => {

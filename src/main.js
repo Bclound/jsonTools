@@ -1,3 +1,4 @@
+import '@xyflow/react/dist/style.css';
 import './style.css';
 import { EditorView } from '@codemirror/view';
 import { undo } from '@codemirror/commands';

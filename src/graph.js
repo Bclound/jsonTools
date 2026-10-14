@@ -1,7 +1,7 @@
-import { icon } from './icons.js';
-import { layoutGraph, visibleCards, visibleFieldRange, CARD_WIDTH as WIDTH, CARD_HEADER as HEADER, FIELD_HEIGHT as ROW } from './graph-layout.js';
-
-const esc = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { FlowGraph } from './graph-flow.jsx';
+import { layoutGraph, visibleCards, flowGraph, edgeCoordinates, CARD_WIDTH as WIDTH, FIELD_HEIGHT as ROW } from './graph-layout.js';
 
 export class GraphView {
   constructor(element, { select, toggle }) {
@@ -11,32 +11,18 @@ export class GraphView {
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'graph-links';
     this.canvas.setAttribute('aria-hidden', 'true');
-    this.layer = document.createElement('div');
-    this.layer.className = 'graph-layer';
-    element.append(this.canvas, this.layer);
-    let drag;
-    element.addEventListener('pointerdown', event => {
-      if (event.button !== 0 || event.target.closest('button')) return;
-      drag = { x: event.clientX, y: event.clientY, startX: this.x, startY: this.y };
-      this.autoFit = false;
-      element.setPointerCapture(event.pointerId);
-      element.classList.add('dragging');
-      element.focus();
-    });
-    element.addEventListener('pointermove', event => {
-      if (!drag) return;
-      this.x = drag.startX + event.clientX - drag.x;
-      this.y = drag.startY + event.clientY - drag.y;
+    const host = document.createElement('div');
+    host.className = 'graph-flow-host';
+    element.append(this.canvas, host);
+    this.root = createRoot(host);
+    this.model = { nodes: [], edges: [], canvasEdges: false };
+    this.onViewportChange = ({ x, y, zoom }) => {
+      if (this.x === x && this.y === y && this.scale === zoom) return;
+      this.x = x; this.y = y; this.scale = zoom;
       this.schedule();
-    });
-    const stop = () => { drag = null; element.classList.remove('dragging'); };
-    element.addEventListener('pointerup', stop);
-    element.addEventListener('pointercancel', stop);
-    element.addEventListener('wheel', event => {
-      event.preventDefault();
-      const rect = element.getBoundingClientRect();
-      this.zoom(Math.exp(-event.deltaY * .002), event.clientX - rect.left, event.clientY - rect.top);
-    }, { passive: false });
+    };
+    this.onMoveStart = event => { if (event) this.autoFit = false; };
+    this.onPaneClick = () => element.focus({ preventScroll: true });
     element.addEventListener('keydown', event => {
       if (event.target !== element) return;
       const move = { ArrowLeft: [60, 0], ArrowRight: [-60, 0], ArrowUp: [0, 60], ArrowDown: [0, -60] }[event.key];
@@ -50,7 +36,7 @@ export class GraphView {
   }
   clear(message = '粘贴 JSON 后查看结构') {
     this.layout = null;
-    this.layer.replaceChildren();
+    this.model = { nodes: [], edges: [], canvasEdges: false };
     this.element.dataset.empty = message;
     this.render();
   }
@@ -58,6 +44,7 @@ export class GraphView {
     delete this.element.dataset.empty;
     this.data = data;
     this.layout = layoutGraph(data);
+    this.model = flowGraph(this.layout);
     if (recenter) this.fit(); else this.render();
   }
   fit() {
@@ -109,12 +96,11 @@ export class GraphView {
     ctx.lineWidth = 1 / this.scale;
     ctx.strokeStyle = colors.getPropertyValue('--graph-line');
     ctx.beginPath();
-    for (const edge of this.layout.edges) {
-      const a = this.layout.byId.get(edge.from), b = this.layout.byId.get(edge.to);
-      const x = a.x + WIDTH, y = a.y + HEADER + edge.row * ROW + ROW / 2, endY = b.y + HEADER / 2;
-      if (x > bounds.right || b.x < bounds.left || Math.max(y, endY) < bounds.top || Math.min(y, endY) > bounds.bottom) continue;
+    for (const edge of this.model.canvasEdges || this.scale < .35 ? this.layout.edges : []) {
+      const { x, y, endX, endY } = edgeCoordinates(this.layout, edge);
+      if (x > bounds.right || endX < bounds.left || Math.max(y, endY) < bounds.top || Math.min(y, endY) > bounds.bottom) continue;
       ctx.moveTo(x, y);
-      ctx.bezierCurveTo(x + 42, y, b.x - 42, endY, b.x, endY);
+      ctx.bezierCurveTo(x + 42, y, endX - 42, endY, endX, endY);
     }
     ctx.stroke();
     // 全图概览用画布绘制轮廓，放大后再呈现可操作的字段，避免一次生成海量 DOM。
@@ -132,7 +118,6 @@ export class GraphView {
     }
   }
   render() {
-    this.layer.style.transform = `translate(${this.x}px, ${this.y}px) scale(${this.scale})`;
     const percent = this.scale * 100;
     document.querySelector('#graph-zoom').textContent = `${percent < 1 ? percent.toFixed(2) : Math.round(percent)}%`;
     const bounds = {
@@ -142,31 +127,10 @@ export class GraphView {
     };
     const cards = this.layout ? visibleCards(this.layout, bounds) : [];
     this.drawCanvas(bounds, cards);
-    this.layer.replaceChildren();
-    if (this.scale < .35) return;
-    for (const card of cards) {
-      const el = document.createElement('section');
-      el.className = `graph-card${card.id === this.selected ? ' selected' : ''}`;
-      el.style.cssText = `left:${card.x}px;top:${card.y}px;width:${WIDTH}px;height:${card.height}px`;
-      el.setAttribute('aria-label', card.path);
-      el.innerHTML = `<div class="graph-card-title"><button class="graph-title-select" title="定位 ${esc(card.path)}"><span class="graph-title-key">${esc(typeof card.key === 'number' ? `[${card.key}]` : card.key)}</span><span class="graph-type type-${card.type}" title="当前值类型：${esc(card.tsType)}">${esc(card.tsType)}</span>${card.type === 'array' || card.type === 'object' ? `<small>${card.count} ${card.type === 'array' ? '项' : '字段'}</small>` : ''}</button></div>`;
-      el.querySelector('.graph-title-select').onclick = () => this.callbacks.select(card);
-      const range = visibleFieldRange(card, bounds);
-      for (let i = range.from; i < range.to; i++) {
-        const row = card.rows[i];
-        const field = document.createElement('div');
-        field.className = `graph-field${row.id === this.selected ? ' selected' : ''}`;
-        field.style.cssText = `position:absolute;top:${HEADER + i * ROW}px;left:0;right:0`;
-        field.dataset.path = row.path;
-        field.innerHTML = `<button class="graph-value" title="${esc(row.path)}: ${esc(row.value)}\n当前值类型：${esc(row.tsType)}"><span class="graph-field-content"><span class="graph-key">${esc(typeof row.key === 'number' ? `[${row.key}]` : row.key)}</span><span class="type-${row.type}">${esc(row.value)}</span></span><span class="graph-type type-${row.type}" title="当前值类型：${esc(row.tsType)}">${esc(row.tsType)}</span></button>${row.expandable ? `<button class="graph-toggle" title="${row.open ? '收起' : '展开'} ${esc(row.path)}" aria-label="${row.open ? '收起' : '展开'} ${esc(row.path)}" aria-expanded="${row.open}">${icon(row.open ? 'fold' : 'plus')}</button>` : ''}`;
-        field.querySelector('.graph-value').onclick = () => this.callbacks.select(row);
-        field.querySelector('.graph-toggle')?.addEventListener('click', () => this.callbacks.toggle(row));
-        el.append(field);
-      }
-      if (!card.rows.length) {
-        const empty = document.createElement('div'); empty.className = 'graph-empty-value'; empty.textContent = card.value; el.append(empty);
-      }
-      this.layer.append(el);
-    }
+    this.root.render(createElement(FlowGraph, {
+      model: this.model, viewport: { x: this.x, y: this.y, zoom: this.scale }, bounds,
+      selected: this.selected, callbacks: this.callbacks,
+      onViewportChange: this.onViewportChange, onMoveStart: this.onMoveStart, onPaneClick: this.onPaneClick,
+    }));
   }
 }

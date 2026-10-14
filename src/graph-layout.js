@@ -47,3 +47,33 @@ export function visibleFieldRange(card, { top, bottom }) {
     to: Math.min(card.rows.length, Math.ceil((bottom - card.y - CARD_HEADER) / FIELD_HEIGHT)),
   };
 }
+
+export function edgeCoordinates(layout, edge) {
+  const from = layout.byId.get(edge.from), to = layout.byId.get(edge.to);
+  return {
+    x: from.x + CARD_WIDTH, y: from.y + CARD_HEADER + (edge.row + .5) * FIELD_HEIGHT,
+    endX: to.x, endY: to.y + CARD_HEADER / 2,
+  };
+}
+
+export function flowGraph(layout) {
+  const nodes = layout.cards.map(card => ({
+    id: String(card.id), type: 'json', data: card,
+    position: { x: card.x, y: card.y }, width: CARD_WIDTH, height: card.height,
+    ariaLabel: card.path,
+    handles: [
+      { type: 'source', position: 'right', x: CARD_WIDTH, y: CARD_HEADER / 2, width: 1, height: 1 },
+      { type: 'target', position: 'left', x: 0, y: CARD_HEADER / 2, width: 1, height: 1 },
+    ],
+  }));
+  // 高分支图的连线会大量交叠，改用同一画布绘制，避免海量 SVG 元素。
+  const canvasEdges = layout.edges.length > 1000;
+  const edges = canvasEdges ? [] : layout.edges.map(edge => {
+    const { x, y, endX, endY } = edgeCoordinates(layout, edge);
+    return {
+      id: `${edge.from}-${edge.to}`, source: String(edge.from), target: String(edge.to), type: 'json',
+      data: { path: `M ${x} ${y} C ${x + 42} ${y}, ${endX - 42} ${endY}, ${endX} ${endY}` },
+    };
+  });
+  return { nodes, edges, canvasEdges };
+}

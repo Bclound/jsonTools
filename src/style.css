@@ -143,11 +143,14 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .graph-heading button { font-size: 11px; color: var(--link); white-space: nowrap; padding: 4px; }
 .graph-area { flex: 1; min-height: 140px; position: relative; overflow: hidden; }
 .graph-canvas { position: absolute; inset: 0; overflow: hidden; background-color: var(--panel); background-image: radial-gradient(var(--graph-grid) .8px, transparent .8px); background-size: 18px 18px; cursor: grab; touch-action: none; }
-.graph-canvas.dragging { cursor: grabbing; }
 .graph-canvas[data-empty]::after { content: attr(data-empty); position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; color: var(--muted); pointer-events: none; }
-.graph-layer { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
 .graph-links { position: absolute; inset: 0; pointer-events: none; }
-.graph-card { position: absolute; border: 1px solid var(--border-strong); border-radius: 3px; background: var(--editor-bg); overflow: hidden; box-shadow: 0 2px 5px var(--shadow); }
+.graph-flow-host { position: absolute; inset: 0; }
+.graph-flow-host .react-flow { background: transparent; --xy-attribution-background-color: var(--panel-alpha); }
+.graph-flow-host .react-flow__handle { width: 1px; height: 1px; min-width: 0; min-height: 0; top: 18px; opacity: 0; pointer-events: none; }
+.graph-flow-host .react-flow__attribution { font: 9px var(--mono); border-radius: 2px; }
+.graph-flow-host .react-flow__attribution a { color: var(--muted); }
+.graph-card { position: absolute; inset: 0; border: 1px solid var(--border-strong); border-radius: 3px; background: var(--editor-bg); overflow: hidden; box-shadow: 0 2px 5px var(--shadow); }
 .graph-card.selected { border-color: var(--focus); box-shadow: 0 0 0 1px var(--graph-focus); }
 .graph-card-title { height: 36px; display: flex; align-items: center; padding: 0 5px 0 10px; background: var(--panel-header); border-bottom: 1px solid var(--border); }
 .graph-title-select { flex: 1; display: flex; gap: 10px; align-items: center; min-width: 0; text-align: left; font: 12px var(--mono); color: var(--key); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0; }
