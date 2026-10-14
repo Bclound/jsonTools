@@ -222,7 +222,8 @@ explorer = createExplorer({
   isSynced: () => docs.editor.synced === docs.editor.revision,
   getLength: () => docs.editor.view.state.doc.length,
   locate: (offset, length) => locate('editor', offset, length), toast,
-  onSearchResults: rows => minimap.setMatches(rows),
+  onSearchResults: rows => { minimap.setMatches(rows); docs.editor.view.setSearchMatches(rows); },
+  onSearchSelect: id => docs.editor.view.setSearchActive(id),
 });
 const splitter = $('#editor-splitter');
 function setSplit(percent) {

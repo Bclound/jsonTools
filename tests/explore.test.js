@@ -41,6 +41,28 @@ test('重复字段按原文位置分别显示，路径不会被覆盖', () => {
   assert.equal(findFocus(doc, rows[1].offset).value, '"b"');
 });
 
+test('搜索高亮覆盖键和值的全部实际命中，不把祖先路径当成代码命中', () => {
+  const text = '{"same":"Same same","group":{"same":false},"same_options":{"other":true},"num":123123}';
+  const doc = parseDocument(text), rows = searchDocument(doc, ' same ');
+  assert.deepEqual(rows.flatMap(row => row.highlights.map(({ from, to }) => text.slice(from, to))), ['same', 'Same', 'same', 'same', 'same']);
+  assert.ok(rows.every(row => row.highlights.every(({ from, to }) => from >= row.offset && to <= row.offset + row.length)));
+  assert.equal(rows.some(row => row.path.endsWith('.other')), false);
+  assert.deepEqual(searchDocument(doc, '123')[0].highlights.map(({ from, to }) => text.slice(from, to)), ['123', '123']);
+  const path = searchDocument(doc, '$.group.same')[0];
+  assert.equal(text.slice(path.highlights[0].from, path.highlights[0].to), '"same"');
+});
+
+test('代码高亮映射中文、引号、反斜杠、代理对及大小写扩展的原始位置', () => {
+  const text = String.raw`{"\u4e2d文":"前\u4e2d\u6587后中文","escaped":"a\"b\\c","emoji":"x\uD83D\uDE00y😀","case":"İX"}`;
+  const doc = parseDocument(text);
+  const slices = query => searchDocument(doc, query).flatMap(row => row.highlights.map(({ from, to }) => text.slice(from, to)));
+  assert.deepEqual(slices('中文'), [String.raw`\u4e2d文`, String.raw`\u4e2d\u6587`, '中文']);
+  assert.deepEqual(slices('"b\\'), [String.raw`\"b\\`]);
+  assert.deepEqual(slices('😀'), [String.raw`\uD83D\uDE00`, '😀']);
+  assert.deepEqual(slices('x').filter(value => value !== 'x'), ['X']);
+  assert.deepEqual(slices('i\u0307'), ['İ']);
+});
+
 test('关键词只匹配字段或值，祖先路径不带出子项，完整路径精确定位', () => {
   const doc = parseDocument(JSON.stringify({ fields: [
     { field_options: { fullscreen: false, display: true, nested: { label: '普通字段' } } },
@@ -136,6 +158,9 @@ test('十二万行配置：完整图及长卡片按可见范围渲染，精确�
   const row = searchDocument(doc, '字段 19999')[0];
   assert.equal(row.path, '$[19999].label');
   assert.equal(findFocus(doc, row.offset).path, row.path);
+  const allLabels = searchDocument(doc, 'label');
+  assert.equal(allLabels.length, 20000);
+  assert.equal(text.slice(allLabels.at(-1).highlights[0].from, allLabels.at(-1).highlights[0].to), 'label');
   const arrayItem = searchDocument(doc, '$[19999]')[0];
   const focus = findFocus(doc, arrayItem.offset);
   assert.equal(focus.path, '$[19999]');

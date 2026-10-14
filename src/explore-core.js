@@ -61,6 +61,31 @@ export function findFocus(doc, position) {
   return { ...describe(doc, entry), containerId: container.id, ancestors };
 }
 
+function tokenMatches(text, node, needle) {
+  if (!node) return [];
+  const quoted = node.type === 'string', base = node.offset + (quoted ? 1 : 0);
+  const raw = text.slice(base, node.offset + node.length - (quoted ? 1 : 0));
+  const value = quoted ? node.value : raw, folded = value.toLocaleLowerCase();
+  if (!folded.includes(needle)) return [];
+  let positions;
+  // 搜索用解码后的字符串，代码高亮需映射回转义序列和大小写转换前的位置。
+  if (raw !== value || folded.length !== value.length) {
+    positions = [];
+    let cursor = 0;
+    for (const char of value) {
+      const from = cursor;
+      for (let unit = 0; unit < char.length; unit++) cursor += raw[cursor] === '\\' ? (raw[cursor + 1] === 'u' ? 6 : 2) : 1;
+      for (let unit = 0; unit < char.toLocaleLowerCase().length; unit++) positions.push({ from, to: cursor });
+    }
+  }
+  const ranges = [];
+  for (let at = folded.indexOf(needle); at >= 0; at = folded.indexOf(needle, at + needle.length)) {
+    ranges.push({ from: base + (positions ? positions[at].from : at),
+      to: base + (positions ? positions[at + needle.length - 1].to : at + needle.length) });
+  }
+  return ranges;
+}
+
 export function searchDocument(doc, query) {
   const needle = query.trim().toLocaleLowerCase();
   if (!needle) return [];
@@ -73,11 +98,17 @@ export function searchDocument(doc, query) {
       : entry.path.toLocaleLowerCase() === needle ? '路径' : '';
     if (!match) continue;
     const row = describe(doc, entry);
+    const keyNode = entry.node.parent?.type === 'property' ? entry.node.parent.children[0] : null;
+    const highlights = [...tokenMatches(doc.text, keyNode, needle), ...(isValue ? tokenMatches(doc.text, entry.node, needle) : [])];
+    if (match === '路径') {
+      const target = keyNode || entry.node;
+      highlights.push({ from: target.offset, to: target.offset + (isValue || keyNode ? target.length : 1) });
+    }
     if (match === '值' && value.length > 160) {
       const at = value.toLocaleLowerCase().indexOf(needle), start = Math.max(0, at - 45);
       row.value = `${start ? '…' : ''}${value.slice(start, start + 160)}${start + 160 < value.length ? '…' : ''}`;
     }
-    rows.push({ ...row, match });
+    rows.push({ ...row, match, highlights });
   }
   return rows;
 }

@@ -28,6 +28,8 @@ const theme = EditorView.theme({
   '.cm-button:hover': { background: 'var(--hover)' },
   '.cm-searchMatch': { backgroundColor: 'var(--match)', outline: '1px solid var(--match-border)' },
   '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: 'var(--match)', outline: '2px solid var(--match-border)' },
+  '.cm-globalSearchMatch': { backgroundColor: 'var(--match)', outline: '1px solid var(--match-border)', borderRadius: '2px' },
+  '.cm-globalSearchMatch-current': { backgroundColor: 'var(--match)', outline: '2px solid var(--match-border)', boxShadow: 'inset 0 -2px var(--match-border)' },
   '.cm-foldPlaceholder': { backgroundColor: 'var(--panel-header)', color: 'var(--muted)', borderColor: 'var(--border-strong)' },
   '&.cm-focused .cm-matchingBracket': { backgroundColor: 'var(--selection-match)', outline: '1px solid var(--subtle)' },
   '.cm-nonmatchingBracket': { color: 'var(--removed)' },
@@ -86,12 +88,47 @@ const diffHighlights = ViewPlugin.fromClass(class {
     }
   }
 }, { decorations: plugin => plugin.decorations });
+const setSearch = StateEffect.define();
+const emptySearch = { ranges: [], active: -1 };
+const searchRanges = StateField.define({
+  create: () => emptySearch,
+  update(value, transaction) {
+    if (transaction.docChanged) value = emptySearch;
+    for (const effect of transaction.effects) if (effect.is(setSearch)) value = { ...value, ...effect.value };
+    return value;
+  },
+});
+function searchDecorations(view) {
+  const { ranges, active } = view.state.field(searchRanges), marks = [];
+  for (const viewport of view.visibleRanges) {
+    let low = 0, high = ranges.length;
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      if (ranges[mid].to <= viewport.from) low = mid + 1; else high = mid;
+    }
+    for (let i = low; i < ranges.length && ranges[i].from < viewport.to; i++) {
+      const range = ranges[i];
+      marks.push(Decoration.mark({ class: `cm-globalSearchMatch${range.id === active ? ' cm-globalSearchMatch-current' : ''}` })
+        .range(Math.max(range.from, viewport.from), Math.min(range.to, viewport.to)));
+    }
+  }
+  return Decoration.set(marks, true);
+}
+const searchHighlights = ViewPlugin.fromClass(class {
+  constructor(view) { this.decorations = searchDecorations(view); }
+  update(update) {
+    if (update.docChanged || update.viewportChanged || update.startState.field(searchRanges) !== update.state.field(searchRanges)) {
+      this.decorations = searchDecorations(update.view);
+    }
+  }
+}, { decorations: plugin => plugin.decorations });
 export function createEditor(parent, doc, onChange, onCursor, onFormat, onSave, label, onSearch) {
   const indent = new Compartment();
   const view = new EditorView({
     parent,
     state: EditorState.create({ doc, extensions: [
       diffRanges, diffHighlights, lineNumbers(), highlightActiveLineGutter(), highlightSpecialChars(), history(), foldGutter(),
+      ...(onSearch ? [searchRanges, searchHighlights] : []),
       drawSelection(), dropCursor(), indentOnInput(), bracketMatching(), closeBrackets(), rectangularSelection(),
       highlightActiveLine(), highlightSelectionMatches(), json(), theme, syntaxHighlighting(syntax),
       placeholder('粘贴 JSON'),
@@ -119,6 +156,15 @@ export function createEditor(parent, doc, onChange, onCursor, onFormat, onSave, 
   });
   view.setDiff = ranges => view.dispatch({ effects: setDiff.of(ranges.sort((a, b) => a.from - b.from)) });
   view.setIndent = spaces => view.dispatch({ effects: indent.reconfigure(indentUnit.of(' '.repeat(spaces))) });
+  if (onSearch) {
+    view.setSearchMatches = rows => {
+      // 编辑事务已清空旧范围，避免 onChange 回调中再次派发嵌套事务。
+      if (!rows.length && !view.state.field(searchRanges).ranges.length) return;
+      const ranges = rows.flatMap(row => row.highlights.map(range => ({ ...range, id: row.id }))).sort((a, b) => a.from - b.from);
+      view.dispatch({ effects: setSearch.of({ ranges, active: -1 }) });
+    };
+    view.setSearchActive = active => view.dispatch({ effects: setSearch.of({ active }) });
+  }
   return view;
 }
 

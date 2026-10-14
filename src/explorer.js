@@ -6,7 +6,7 @@ const $ = selector => document.querySelector(selector);
 const esc = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const fmt = number => number.toLocaleString('zh-CN');
 
-export function createExplorer({ rpc, ensureDoc, getRevision, isSynced, getLength, locate, toast, onSearchResults }) {
+export function createExplorer({ rpc, ensureDoc, getRevision, isSynced, getLength, locate, toast, onSearchResults, onSearchSelect }) {
   let graphRequest = 0, searchRequest = 0, focusRequest = 0;
   let timer, searchTimer, focusTimer, position = 0, focusRow;
   let options = { collapsed: [] };
@@ -110,8 +110,9 @@ export function createExplorer({ rpc, ensureDoc, getRevision, isSynced, getLengt
     if (!isSynced() || !results.rows[index]) return;
     selectedSearch = index;
     const row = results.rows[index];
-    locate(row.offset, 0);
-    position = row.offset;
+    onSearchSelect(row.id);
+    position = row.highlights[0]?.from ?? row.offset;
+    locate(position, 0);
     clearTimeout(focusTimer);
     updateFocus(true).catch(report);
     results.scrollTo(index);
