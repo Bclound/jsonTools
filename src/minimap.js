@@ -102,9 +102,11 @@ export class CodeMinimap {
     canvas.setAttribute('aria-valuetext', `当前第 ${this.first} 至 ${this.last} 行，${this.matches.length} 行搜索匹配`);
     canvas.dataset.startLine = model.start;
     canvas.dataset.endLine = model.end;
-    ctx.fillStyle = '#dfe7da66';
+    const theme = getComputedStyle(this.element);
+    const colors = Object.fromEntries(['minimap-slider', 'minimap-border', 'subtle', 'key', 'string', 'number', 'keyword', 'minimap-match', 'focus', 'panel', 'match-border'].map(name => [name, theme.getPropertyValue(`--${name}`).trim()]));
+    ctx.fillStyle = colors['minimap-slider'];
     ctx.fillRect(0, model.thumbTop, width - 10, model.thumbHeight);
-    ctx.strokeStyle = '#adbea0';
+    ctx.strokeStyle = colors['minimap-border'];
     ctx.strokeRect(.5, model.thumbTop + .5, width - 11, model.thumbHeight - 1);
     // 缩略图只读取窗口内的行，十万行文档也不逐帧扫描全文。
     ctx.save(); ctx.beginPath(); ctx.rect(3, 0, width - 16, height); ctx.clip();
@@ -114,26 +116,26 @@ export class CodeMinimap {
     for (let number = model.start; number <= model.end; number++) {
       const line = doc.line(number), text = doc.sliceString(line.from, Math.min(line.to, line.from + maxChars));
       const y = (number - model.start) * MINI_LINE_HEIGHT;
-      ctx.fillStyle = '#8d9b91'; ctx.fillText(text, 4, y);
+      ctx.fillStyle = colors.subtle; ctx.fillText(text, 4, y);
       for (const token of text.matchAll(/"(?:\\.|[^"\\])*"\s*:?|\b(?:true|false|null)\b|-?\d+(?:\.\d+)?/g)) {
-        ctx.fillStyle = token[0].endsWith(':') ? '#507863' : token[0].startsWith('"') ? '#b18a65' : '#827894';
+        ctx.fillStyle = token[0].endsWith(':') ? colors.key : token[0].startsWith('"') ? colors.string : /^[\d-]/.test(token[0]) ? colors.number : colors.keyword;
         ctx.fillText(token[0], 4 + token.index * charWidth, y);
       }
     }
-    ctx.fillStyle = '#d9a44180';
+    ctx.fillStyle = colors['minimap-match'];
     for (let i = firstMatchAt(this.matches, model.start); i < this.matches.length && this.matches[i] <= model.end; i++) {
       ctx.fillRect(0, (this.matches[i] - model.start) * MINI_LINE_HEIGHT, width - 10, MINI_LINE_HEIGHT);
     }
     const focused = doc.lineAt(view.state.selection.main.head).number;
     if (focused >= model.start && focused <= model.end) {
-      ctx.fillStyle = '#5e8457'; ctx.fillRect(4, (focused - model.start) * MINI_LINE_HEIGHT, 3, MINI_LINE_HEIGHT);
+      ctx.fillStyle = colors.focus; ctx.fillRect(4, (focused - model.start) * MINI_LINE_HEIGHT, 3, MINI_LINE_HEIGHT);
     }
     ctx.restore();
-    ctx.fillStyle = '#e9eee5'; ctx.fillRect(width - 8, 0, 8, height);
+    ctx.fillStyle = colors.panel; ctx.fillRect(width - 8, 0, 8, height);
     if (this.pixelHeight !== height) { this.pixels = matchPixels(this.matches, doc.lines, height); this.pixelHeight = height; }
-    ctx.fillStyle = '#c08a28';
+    ctx.fillStyle = colors['match-border'];
     for (const y of this.pixels) ctx.fillRect(width - 7, y, 6, 2);
-    ctx.strokeStyle = '#67885a';
+    ctx.strokeStyle = colors.focus;
     const markerY = (this.first - 1) / Math.max(1, doc.lines - 1) * (height - 3);
     ctx.strokeRect(width - 7.5, markerY + .5, 7, Math.max(3, (this.last - this.first + 1) / doc.lines * height));
   }

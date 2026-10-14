@@ -104,9 +104,10 @@ export class GraphView {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     if (!this.layout) return;
+    const colors = getComputedStyle(this.element);
     ctx.setTransform(ratio * this.scale, 0, 0, ratio * this.scale, ratio * this.x, ratio * this.y);
     ctx.lineWidth = 1 / this.scale;
-    ctx.strokeStyle = '#becdbc';
+    ctx.strokeStyle = colors.getPropertyValue('--graph-line');
     ctx.beginPath();
     for (const edge of this.layout.edges) {
       const a = this.layout.byId.get(edge.from), b = this.layout.byId.get(edge.to);
@@ -118,14 +119,14 @@ export class GraphView {
     ctx.stroke();
     // 全图概览用画布绘制轮廓，放大后再呈现可操作的字段，避免一次生成海量 DOM。
     if (this.scale < .35) {
-      ctx.fillStyle = '#edf4e7'; ctx.strokeStyle = '#9eb292';
+      ctx.fillStyle = colors.getPropertyValue('--panel'); ctx.strokeStyle = colors.getPropertyValue('--graph-line');
       for (const card of cards) {
         ctx.fillRect(card.x, card.y, WIDTH, card.height);
         ctx.strokeRect(card.x, card.y, WIDTH, card.height);
       }
       const target = this.layout.targets.get(this.selected);
       if (target) {
-        ctx.fillStyle = '#54863d';
+        ctx.fillStyle = colors.getPropertyValue('--accent');
         ctx.fillRect(target.card.x, target.y - ROW / 2, WIDTH, ROW);
       }
     }
