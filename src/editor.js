@@ -14,7 +14,7 @@ const theme = EditorView.theme({
   '.cm-line': { padding: '0 24px 0 12px' },
   '.cm-gutters': { backgroundColor: 'var(--editor-bg)', color: 'var(--gutter)', border: 'none', padding: '0 0 0 14px', minWidth: '50px' },
   '.cm-lineNumbers .cm-gutterElement': { padding: '0 8px 0 0' },
-  '.cm-activeLine': { backgroundColor: 'var(--active-line)', boxShadow: 'inset 0 0 0 1px var(--border)' },
+  '.cm-activeLine': { backgroundColor: 'var(--active-line)', boxShadow: 'inset 0 0 0 1px var(--border-strong)' },
   '.cm-activeLineGutter': { backgroundColor: 'var(--editor-bg)', color: 'var(--gutter-active)' },
   '&.cm-focused': { outline: 'none' },
   '& .cm-selectionLayer .cm-selectionBackground': { backgroundColor: 'var(--selection-inactive)' },
