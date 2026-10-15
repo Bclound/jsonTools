@@ -9,6 +9,10 @@ import { VirtualList } from './virtual-list.js';
 import { icon } from './icons.js';
 import { createExplorer } from './explorer.js';
 import { CodeMinimap } from './minimap.js';
+import { createSharing } from './share.js';
+
+const isShareView = location.hash.startsWith('#s=');
+const sharedId = new URLSearchParams(location.hash.slice(1)).get('s');
 
 const $ = selector => document.querySelector(selector);
 const esc = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
@@ -31,8 +35,9 @@ $('#app').innerHTML = `
       <div class="workbench editor-workbench">
         <div class="toolbar">
           <div class="toolbar-main">${button('format', '格式化', 'format', 'primary', '单行 JSON 双击格式化，或 ⌘ / Ctrl + Shift + F')}${button('compact', '压缩', 'compact')}${button('check', '校验', 'validate')}<span class="divider"></span><select id="indent" aria-label="缩进空格数"><option value="2">2 空格</option><option value="4">4 空格</option><option value="8">8 空格</option></select></div>
-          <div class="toolbar-end">${button('search', '搜索', 'search', '', '搜索字段、值或路径 · ⌘ / Ctrl + F')}<span class="divider"></span>${iconButton('copy', '复制 JSON', 'copy')}${iconButton('download', '下载 JSON', 'download')}${iconButton('trash', '清空 JSON（可撤销）', 'clear')}</div>
+          <div class="toolbar-end">${button('share', '分享', 'share', '', '生成分享链接，7 天有效')}${button('search', '搜索', 'search', '', '搜索字段、值或路径 · ⌘ / Ctrl + F')}<span class="divider"></span>${iconButton('copy', '复制 JSON', 'copy')}${iconButton('download', '下载 JSON', 'download')}${iconButton('trash', '清空 JSON（可撤销）', 'clear')}</div>
         </div>
+        <div class="shared-banner" id="shared-banner" role="status" hidden><span id="shared-status">正在加载分享…</span><a class="btn" href="/" target="_blank" rel="noopener noreferrer">打开编辑器</a></div>
         <div class="error-banner" id="editor-error" hidden></div>
         <div class="focus-bar"><span class="focus-label">当前位置</span><code id="focus-path" aria-live="polite">$</code><span id="focus-type"></span><button class="icon-btn" id="copy-path" aria-label="复制当前位置路径" title="复制完整路径">${icon('copy')}</button><button class="icon-btn" id="reveal-focus" aria-label="在结构图中定位当前字段" title="在结构图中定位">${icon('tree')}</button></div>
         <div class="editor-body" id="editor-body">
@@ -56,6 +61,7 @@ $('#app').innerHTML = `
   </main>
   <div class="busy-indicator" id="busy" role="status" hidden><span class="spinner"></span><span id="busy-text"></span><button data-action="cancel">取消</button></div>
   <div id="toast" role="status" hidden></div>
+  <dialog id="share-dialog" aria-labelledby="share-title"><div class="dialog-title"><h2 id="share-title">分享 JSON</h2><button class="icon-btn" data-share-close aria-label="关闭分享">${icon('close')}</button></div><p class="share-note">分享当前内容的独立副本，对方可自由编辑，不影响你的原文。持有链接的人均可访问，7 天后自动过期。</p><p role="status" class="share-status"></p><input class="share-link" readonly aria-label="分享链接" hidden /><div class="share-actions"><button class="btn primary" data-share-copy disabled>${icon('copy')}<span>复制链接</span></button></div></dialog>
   <dialog id="help-dialog"><div class="dialog-title"><h2>快捷键与使用说明</h2>${iconButton('close', '关闭说明', 'close-help')}</div><div class="help-section"><p>直接粘贴 JSON。单行压缩 JSON 双击左键即可格式化；多行已排版内容双击选中单词，再按 ⌘ / Ctrl + C 复制。输入或修改对比选项后，会自动更新差异；两侧滚动条同步。</p><p>对比默认按数组索引匹配。忽略数组顺序时，未匹配项分别显示为删除与新增。大整数保留原始精度，重复字段需先消除歧义才能对比。</p><p>搜索覆盖完整文档，只匹配字段名或值本身，不因祖先路径命中而列出子项；输入完整路径可精确查找。搜索结果浮在搜索框下方，点击结果后收起；Esc、关闭按钮或点击外部可收起，再次点击搜索框可展开。结果显示路径与数组下标。代码右侧缩略图支持点击、拖动、滚轮和收起/展开；橙色标记显示搜索命中行，最右侧标记覆盖全文。点击结果或图中字段可定位代码；当前位置栏跟随光标更新，可复制路径。结构图支持拖动、缩放，全部节点默认展开，无分页。光标移动时自动定位图中的对应 key；缩小为概览时显示节点轮廓，放大后显示字段。</p><p>关闭或刷新页面会清空内容，需要保留时请复制或下载。</p></div><div class="shortcut-list"><div><span>格式化</span><kbd>双击左键 / ⌘ Ctrl + Shift + F</kbd></div><div><span>搜索字段 / 值 / 路径</span><kbd>⌘ / Ctrl + F</kbd></div><div><span>下载 JSON</span><kbd>⌘ / Ctrl + S</kbd></div><div><span>撤销</span><kbd>⌘ / Ctrl + Z</kbd></div><div><span>切换编辑器 / 对比</span><kbd>Alt + 1 / 2</kbd></div></div></dialog>
 `;
 
@@ -205,6 +211,7 @@ function locate(side, offset = 0, length = 0) {
   view.focus();
 }
 async function transform(operation, side = 'editor') {
+  if (docs[side].view.state.readOnly) return;
   await task(operation === 'format' ? '正在格式化 JSON…' : '正在压缩 JSON…', async () => {
     await ensureDoc(side);
     const revision = docs[side].revision;
@@ -260,7 +267,7 @@ function showPage(page) {
     if (item === page) button.setAttribute('aria-current', 'page'); else button.removeAttribute('aria-current');
   }
   if (page === 'diff') scheduleComparison();
-  history.replaceState(null, '', `#${page}`);
+  if (!isShareView) history.replaceState(null, '', `#${page}`);
   for (const doc of Object.values(docs)) doc.view.requestMeasure();
 }
 function saveBlob(text, filename) {
@@ -354,13 +361,14 @@ const autoCompare = createAutoCompare({
 });
 $('[data-action="export-diff"]').disabled = true;
 function clearDocument(side = 'editor') {
+  if (docs[side].view.state.readOnly) return;
   setText(side, '');
   toast('已清空', () => undo(docs[side].view));
   docs[side].view.focus();
 }
 const actions = {
   'nav-editor': () => showPage('editor'), 'nav-diff': () => showPage('diff'),
-  search: () => explorer.search(),
+  search: () => explorer.search(), share: () => sharing.share(),
   format: () => transform('format'), compact: () => transform('compact'),
   validate: () => task('正在校验 JSON…', async () => { await ensureDoc('editor'); await explorer.refresh(); toast('校验完成'); }),
   download: () => download(), copy: () => copy(),
@@ -392,3 +400,28 @@ window.addEventListener('keydown', event => {
 window.addEventListener('dragover', event => { if (event.dataTransfer.types.includes('Files')) event.preventDefault(); });
 window.addEventListener('drop', event => { if (event.dataTransfer.files.length) event.preventDefault(); });
 if (location.hash === '#diff') showPage('diff');
+
+const sharing = createSharing({
+  dialog: $('#share-dialog'), getText: () => getText('editor'), validate: () => ensureDoc('editor'), toast,
+  async showShared(text, expiresAt, error) {
+    if (error) {
+      $('#shared-status').textContent = error;
+      $('#shared-banner').classList.add('failed');
+      docs.editor.view.setReadOnly(false);
+      return;
+    }
+    setText('editor', text);
+    docs.editor.dirty = false;
+    await ensureDoc('editor');
+    await explorer.refresh();
+    docs.editor.view.setReadOnly(false);
+    $('#shared-status').textContent = `分享副本 · 修改仅保留在当前页面 · 链接 ${new Date(expiresAt).toLocaleString('zh-CN', { hour12: false })} 过期`;
+  },
+});
+$('#help-dialog .help-section').append(Object.assign(document.createElement('p'), { textContent: '点击「分享」会上传当前 JSON 副本，生成 7 天有效的链接。对方可以自由操作自己的副本，不影响原文或原链接。普通编辑、搜索和对比仍在本地完成。' }));
+if (isShareView) {
+  document.title = 'JSON 分享';
+  $('#shared-banner').hidden = false;
+  docs.editor.view.setReadOnly(true);
+  sharing.load(sharedId);
+}

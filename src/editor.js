@@ -124,6 +124,7 @@ const searchHighlights = ViewPlugin.fromClass(class {
 }, { decorations: plugin => plugin.decorations });
 export function createEditor(parent, doc, onChange, onCursor, onFormat, onSave, label, onSearch) {
   const indent = new Compartment();
+  const readOnly = new Compartment();
   const view = new EditorView({
     parent,
     state: EditorState.create({ doc, extensions: [
@@ -140,7 +141,7 @@ export function createEditor(parent, doc, onChange, onCursor, onFormat, onSave, 
           return false;
         },
       }),
-      indent.of(indentUnit.of('  ')), EditorState.phrases.of(phrases),
+      indent.of(indentUnit.of('  ')), readOnly.of(EditorState.readOnly.of(false)), EditorState.phrases.of(phrases),
       EditorView.contentAttributes.of({ 'aria-label': label, spellcheck: 'false', autocorrect: 'off', autocapitalize: 'off' }),
       keymap.of([
         ...(onSearch ? [{ key: 'Mod-f', run: () => { onSearch(); return true; } }] : []),
@@ -156,6 +157,9 @@ export function createEditor(parent, doc, onChange, onCursor, onFormat, onSave, 
   });
   view.setDiff = ranges => view.dispatch({ effects: setDiff.of(ranges.sort((a, b) => a.from - b.from)) });
   view.setIndent = spaces => view.dispatch({ effects: indent.reconfigure(indentUnit.of(' '.repeat(spaces))) });
+  view.setReadOnly = value => view.dispatch({ effects: readOnly.reconfigure([
+    EditorState.readOnly.of(value), EditorView.contentAttributes.of({ 'aria-readonly': String(value) }),
+  ]) });
   if (onSearch) {
     view.setSearchMatches = rows => {
       // 编辑事务已清空旧范围，避免 onChange 回调中再次派发嵌套事务。

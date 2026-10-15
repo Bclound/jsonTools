@@ -1,4 +1,5 @@
 const paths = {
+  share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4m-6.8 7 6.8 4"/>',
   braces: '<path d="M8 4H6v6l-3 2 3 2v6h2m8-16h2v6l3 2-3 2v6h-2"/>',
   code: '<path d="m8 8-4 4 4 4m8-8 4 4-4 4m-3-11-2 22"/>',
   diff: '<path d="M8 3v18m8-18v18M5 6h6m2 12h6"/><path d="m14 6 2-2 2 2M6 18l2 2 2-2"/>',

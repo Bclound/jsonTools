@@ -271,6 +271,14 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 @keyframes spin { to { transform: rotate(360deg); } }
 dialog { border: 1px solid var(--border-strong); border-radius: 3px; padding: 22px; background: var(--panel); max-width: 500px; width: calc(100vw - 32px); color: var(--muted); box-shadow: 0 20px 70px var(--shadow); }
 dialog::backdrop { background: var(--backdrop); }
+.share-note { margin: 18px 0; font-size: 13px; line-height: 1.8; }
+.share-status { min-height: 22px; font-size: 12px; color: var(--foreground); overflow-wrap: anywhere; }
+.share-link { width: 100%; padding: 10px; border: 1px solid var(--border-strong); background: var(--input); color: var(--key); font: 12px/1.5 var(--mono); }
+.share-link:focus { outline: 1px solid var(--accent); }
+.share-actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+.shared-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--panel); font-size: 12px; color: var(--muted); }
+.shared-banner.failed { color: var(--removed); }
+.shared-banner a { text-decoration: none; flex-shrink: 0; }
 .dialog-title { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
 .dialog-title h2 { margin: 0; font-size: 17px; font-weight: 550; }
 .help-section { margin: 20px 0; font-size: 12px; line-height: 1.9; color: var(--muted); }
