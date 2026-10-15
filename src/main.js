@@ -35,7 +35,7 @@ $('#app').innerHTML = `
       <div class="workbench editor-workbench">
         <div class="toolbar">
           <div class="toolbar-main">${button('format', '格式化', 'format', 'primary', '单行 JSON 双击格式化，或 ⌘ / Ctrl + Shift + F')}${button('compact', '压缩', 'compact')}${button('check', '校验', 'validate')}<span class="divider"></span><select id="indent" aria-label="缩进空格数"><option value="2">2 空格</option><option value="4">4 空格</option><option value="8">8 空格</option></select></div>
-          <div class="toolbar-end">${button('share', '分享', 'share', '', '生成分享链接，7 天有效')}${button('search', '搜索', 'search', '', '搜索字段、值或路径 · ⌘ / Ctrl + F')}<span class="divider"></span>${iconButton('copy', '复制 JSON', 'copy')}${iconButton('download', '下载 JSON', 'download')}${iconButton('trash', '清空 JSON（可撤销）', 'clear')}</div>
+          <div class="toolbar-end">${button('share', '分享', 'share', 'share-button', '生成分享链接，7 天有效')}${button('search', '搜索', 'search', '', '搜索字段、值或路径 · ⌘ / Ctrl + F')}<span class="divider"></span>${iconButton('copy', '复制 JSON', 'copy')}${iconButton('download', '下载 JSON', 'download')}${iconButton('trash', '清空 JSON（可撤销）', 'clear')}</div>
         </div>
         <div class="shared-banner" id="shared-banner" role="status" hidden><span id="shared-status">正在加载分享…</span><a class="btn" href="/" target="_blank" rel="noopener noreferrer">打开编辑器</a></div>
         <div class="error-banner" id="editor-error" hidden></div>

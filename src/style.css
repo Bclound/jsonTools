@@ -105,6 +105,8 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .btn:hover:not(:disabled), .icon-btn:hover { background: var(--hover); color: var(--foreground); }
 .btn.primary { background: var(--button-bg); border-color: var(--border-strong); color: var(--button-text); }
 .btn.primary:hover:not(:disabled) { background: var(--button-hover); color: var(--button-text); }
+.btn.share-button { background: var(--focus); border-color: var(--focus); color: var(--editor-bg); font-weight: 600; }
+.btn.share-button:hover:not(:disabled) { background: color-mix(in srgb, var(--focus) 85%, white); color: var(--editor-bg); }
 .btn.quiet { border-color: transparent; background: transparent; color: var(--muted); }
 .icon-btn { width: 29px; height: 29px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); }
 .icon-btn .icon { width: 15px; height: 15px; }
