@@ -21,3 +21,5 @@
 2026-10-15 新增 JSON 分享：编辑器按钮将当前原文保存到 Vercel Functions + Upstash Redis，128 位随机短 ID，7 天 TTL。接收者打开的是可自由编辑的独立副本，修改不会写回原链接或影响分享者；普通操作保持本地。api/share.js 只提供创建/读取接口，最多 4 MiB，按来源每小时 20 次，全站每日 200 份 / 24 MiB 原文，限额与保存通过 Lua 原子执行。原文返回 text/plain/no-store/nosniff，保留大整数，密钥只存在服务端环境。Vite 开发服务复用同一接口。免费数据库 json-tools-shares 已连接 Vercel json-tools 的生产、预览、开发环境。主域名为 https://json.aiworld.cool/ 。本机凭据读取遇到 Vercel 二次身份验证，未保存密钥，改用线上完成真实联调。
 
 分享已在 json.aiworld.cool 上线：匿名 HTTP 验证原文保存与读取逐字一致，120,002 行实际文档可打开和全局搜索至末尾。接收方格式化、编辑、搜索、对比和再次分享均通过；原分享不可改写。全套 41 项检查通过，Vercel Git 自动部署 main。
+
+2026-10-15 按用户要求接入 Vercel Web Analytics：原生 JavaScript 入口使用 @vercel/analytics 的 inject，仅生产版本启用。beforeSend 移除页面地址的查询参数和 hash，统计不包含 JSON 原文、搜索词或分享 ID；不增加自定义行为事件。

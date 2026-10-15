@@ -10,6 +10,20 @@ import { icon } from './icons.js';
 import { createExplorer } from './explorer.js';
 import { CodeMinimap } from './minimap.js';
 import { createSharing } from './share.js';
+import { inject } from '@vercel/analytics';
+
+if (import.meta.env.PROD) {
+  inject({
+    mode: 'production',
+    beforeSend(event) {
+      // 统计不携带查询参数或包含分享 ID 的 hash。
+      const url = new URL(event.url);
+      url.search = '';
+      url.hash = '';
+      return { ...event, url: url.toString() };
+    },
+  });
+}
 
 const isShareView = location.hash.startsWith('#s=');
 const sharedId = new URLSearchParams(location.hash.slice(1)).get('s');
