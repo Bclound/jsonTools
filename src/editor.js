@@ -1,11 +1,12 @@
 import { EditorState, Compartment, StateEffect, StateField } from '@codemirror/state';
-import { EditorView, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, keymap, highlightActiveLine, drawSelection, dropCursor, rectangularSelection, Decoration, ViewPlugin, placeholder } from '@codemirror/view';
+import { EditorView, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, keymap, highlightActiveLine, drawSelection, dropCursor, rectangularSelection, Decoration, ViewPlugin, placeholder, hoverTooltip } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { bracketMatching, foldGutter, foldKeymap, indentOnInput, syntaxHighlighting, HighlightStyle, indentUnit } from '@codemirror/language';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
 import { json } from '@codemirror/lang-json';
 import { tags } from '@lezer/highlight';
+import { hoverInfo } from './tools-core.js';
 
 const theme = EditorView.theme({
   '&': { height: '100%', color: 'var(--editor-foreground)', backgroundColor: 'var(--editor-bg)', fontSize: '13px' },
@@ -122,7 +123,7 @@ const searchHighlights = ViewPlugin.fromClass(class {
     }
   }
 }, { decorations: plugin => plugin.decorations });
-export function createEditor(parent, doc, onChange, onCursor, onFormat, onSave, label, onSearch) {
+export function createEditor(parent, doc, onChange, onCursor, onFormat, onSave, label, onSearch, smartPaste) {
   const indent = new Compartment();
   const readOnly = new Compartment();
   const view = new EditorView({
@@ -133,7 +134,29 @@ export function createEditor(parent, doc, onChange, onCursor, onFormat, onSave, 
       drawSelection(), dropCursor(), indentOnInput(), bracketMatching(), closeBrackets(), rectangularSelection(),
       highlightActiveLine(), highlightSelectionMatches(), json(), theme, syntaxHighlighting(syntax),
       placeholder('粘贴 JSON'),
+      // 悬停数字或字符串时解码时间戳、JWT、Base64；超长单行不扫描。
+      hoverTooltip((editor, pos) => {
+        const line = editor.state.doc.lineAt(pos);
+        const info = line.length < 20000 && hoverInfo(line.text, pos - line.from);
+        if (!info) return null;
+        return { pos: line.from + info.from, end: line.from + info.to, above: true, create() {
+          const dom = document.createElement('div');
+          const title = Object.assign(document.createElement('strong'), { textContent: info.title });
+          dom.className = 'cm-hover-info';
+          dom.append(title, Object.assign(document.createElement('pre'), { textContent: info.text }));
+          return { dom };
+        } };
+      }),
       EditorView.domEventHandlers({
+        paste(event, editor) {
+          const { from, to } = editor.state.selection.main;
+          if (!smartPaste || (editor.state.doc.length && (from !== 0 || to !== editor.state.doc.length))) return false;
+          const fixed = smartPaste(event.clipboardData?.getData('text/plain') || '');
+          if (fixed == null) return false;
+          event.preventDefault();
+          editor.dispatch({ changes: { from, to, insert: fixed }, selection: { anchor: 0 }, userEvent: 'input.paste', scrollIntoView: true });
+          return true;
+        },
         dblclick(event, editor) {
           if (event.button !== 0 || !event.target.closest('.cm-content')) return false;
           // 已排版的内容保留编辑器原生选词；单行 JSON 才触发双击格式化。

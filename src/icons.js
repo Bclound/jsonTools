@@ -27,6 +27,7 @@ const paths = {
   fold: '<path d="m7 4 5 5 5-5M7 20l5-5 5 5"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   alert: '<path d="m12 3 10 18H2L12 3Zm0 6v5m0 3h.01"/>',
+  wand: '<path d="m4 20 11-11m0 0 2-5 1 1 5-1-3 4 1 1-5 2m-6-1 1 1"/><path d="M18 14v4m-2-2h4M6 4v3M4.5 5.5h3"/>',
   dot: '<circle cx="12" cy="12" r="3"/>',
 };
 export const icon = (name, cls = '') => `<svg class="icon ${cls}" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name] || paths.file}</svg>`;

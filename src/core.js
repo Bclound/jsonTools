@@ -126,16 +126,29 @@ function normalizedNumber(raw) {
   return `${match[1]}${coefficient}e${exponent}`;
 }
 
+// 忽略项：以 $ 开头为路径（数组下标可写 [*]），否则为任意层级的字段名。
+export function ignoreMatcher(list = []) {
+  const keys = new Set(), paths = new Set();
+  for (const item of list) (item.startsWith('$') ? paths : keys).add(item);
+  if (!keys.size && !paths.size) return null;
+  return (path, key) => keys.has(key) || paths.has(path) || paths.has(path.replace(/\[\d+\]/g, '[*]'));
+}
+
+const visibleEntries = (node, path, ignored) => {
+  const entries = childEntries(node);
+  return ignored && node.type === 'object' ? entries.filter(([key]) => !ignored(pathFor(path, key), key)) : entries;
+};
+
 // 两份文档共享结构签名表；无需将整个子树反复序列化，也没有哈希碰撞。
-function makeSignatures(doc, ignoreArrayOrder, intern) {
+function makeSignatures(doc, ignoreArrayOrder, intern, ignored) {
   const ids = new WeakMap();
-  const stack = [[doc.root, false]];
+  const stack = [[doc.root, false, '$']];
   while (stack.length) {
-    const [node, visited] = stack.pop();
-    const entries = childEntries(node);
+    const [node, visited, path] = stack.pop();
+    const entries = visibleEntries(node, path, ignored);
     if (!visited && entries.length) {
-      stack.push([node, true]);
-      for (const [, child] of entries) stack.push([child, false]);
+      stack.push([node, true, path]);
+      for (const [key, child] of entries) stack.push([child, false, pathFor(path, key)]);
       continue;
     }
     let signature;
@@ -155,13 +168,14 @@ function makeSignatures(doc, ignoreArrayOrder, intern) {
   return ids;
 }
 
-export function compareDocuments(left, right, { ignoreArrayOrder = false } = {}) {
+export function compareDocuments(left, right, { ignoreArrayOrder = false, ignore = [] } = {}) {
+  const ignored = ignoreMatcher(ignore);
   for (const [label, doc] of [['原始 JSON', left], ['目标 JSON', right]]) {
     if (doc.duplicates.length) throw new Error(`${label} 存在重复字段 ${JSON.stringify(doc.duplicates[0].key)}，请先消除歧义再对比`);
   }
   const intern = new Map();
-  const aIds = makeSignatures(left, ignoreArrayOrder, intern);
-  const bIds = makeSignatures(right, ignoreArrayOrder, intern);
+  const aIds = makeSignatures(left, ignoreArrayOrder, intern, ignored);
+  const bIds = makeSignatures(right, ignoreArrayOrder, intern, ignored);
   const rows = [];
   const counts = { added: 0, removed: 0, changed: 0 };
   const queue = [{ a: left.root, b: right.root, path: '$' }];
@@ -179,8 +193,8 @@ export function compareDocuments(left, right, { ignoreArrayOrder = false } = {})
       add('changed', path, a, b); continue;
     }
     if (a.type === 'object') {
-      const aa = new Map(childEntries(a));
-      const bb = new Map(childEntries(b));
+      const aa = new Map(visibleEntries(a, path, ignored));
+      const bb = new Map(visibleEntries(b, path, ignored));
       const keys = [...new Set([...aa.keys(), ...bb.keys()])];
       for (let i = keys.length - 1; i >= 0; i--) {
         const key = keys[i];

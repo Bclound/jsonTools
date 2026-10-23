@@ -365,3 +365,46 @@ dialog::backdrop { background: var(--backdrop); }
   .shortcut-list kbd { font-size: 9px; }
 }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+.menu { position: relative; }
+.menu-list { position: absolute; z-index: 40; top: calc(100% + 4px); left: 0; min-width: 250px; padding: 4px 0; border: 1px solid var(--border-strong); border-radius: 3px; background: var(--panel); box-shadow: 0 10px 30px var(--shadow); }
+.menu-list button { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; width: 100%; padding: 7px 14px; text-align: left; font-size: 12px; color: var(--foreground); }
+.menu-list button:hover, .menu-list button:focus-visible { background: var(--hover); }
+.menu-list small { color: var(--muted); font-size: 10px; }
+.menu-list hr { margin: 4px 0; border: 0; border-top: 1px solid var(--border); }
+.check-inline { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted); cursor: pointer; }
+.check-inline input, .ignore-field input { accent-color: var(--accent); }
+.ignore-field { flex: 1; max-width: 460px; }
+.ignore-field input { flex: 1; min-width: 0; height: 24px; padding: 0 8px; border: 1px solid var(--border-strong); background: var(--input); color: var(--foreground); font: 11px var(--mono); }
+.tool-dialog { max-width: min(980px, calc(100vw - 32px)); height: min(720px, calc(100dvh - 48px)); flex-direction: column; gap: 12px; }
+.tool-dialog[open] { display: flex; }
+.tool-dialog .tool-nav { display: flex; flex-wrap: wrap; gap: 2px; border-bottom: 1px solid var(--border-strong); }
+.tool-dialog .tool-nav button { padding: 7px 14px; font-size: 12px; color: var(--muted); border-bottom: 2px solid transparent; }
+.tool-dialog .tool-nav button[aria-selected="true"] { color: var(--foreground); border-bottom-color: var(--accent); }
+.tool-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12px; }
+.tool-controls:empty { display: none; }
+.tool-controls input[type=number] { width: 80px; height: 26px; padding: 0 6px; border: 1px solid var(--border-strong); background: var(--input); color: var(--foreground); }
+.tool-input { flex: 1; min-width: 0; height: 30px; padding: 0 10px; border: 1px solid var(--border-strong); background: var(--input); color: var(--foreground); font: 12px var(--mono); }
+.tool-hint { margin: 0 0 8px; font-size: 11px; color: var(--muted); }
+.tool-controls .tool-hint { margin: 0; }
+.tool-result { flex: 1; min-height: 0; overflow: auto; }
+.tool-output { margin: 0; padding: 12px; min-height: 100%; background: var(--editor-bg); border: 1px solid var(--border); color: var(--foreground); font: 12px/1.6 var(--mono); white-space: pre; user-select: text; }
+.tool-empty { padding: 30px 0; text-align: center; font-size: 12px; }
+.tool-empty.error { color: var(--removed); }
+.tool-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.tool-actions:empty { display: none; }
+.path-list { display: flex; flex-direction: column; }
+.path-row, .history-row { display: flex; gap: 14px; align-items: baseline; padding: 6px 8px; border-bottom: 1px solid var(--border); font-size: 12px; text-align: left; }
+.path-row:hover { background: var(--hover); }
+.path-row code, .history-row code { flex: none; max-width: 45%; overflow: hidden; text-overflow: ellipsis; color: var(--key); font: 11px var(--mono); }
+.path-row span, .history-row code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--string); font: 11px var(--mono); }
+.history-row { align-items: center; }
+.history-row > span { flex: none; color: var(--muted); }
+.history-row code { flex: 1; max-width: none; }
+.history-row small { flex: none; color: var(--muted); }
+.table-wrap { overflow: auto; border: 1px solid var(--border); }
+.table-wrap table { border-collapse: collapse; font: 11px var(--mono); }
+.table-wrap th, .table-wrap td { max-width: 280px; padding: 5px 10px; border: 1px solid var(--border); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.table-wrap th { position: sticky; top: 0; background: var(--panel-header); color: var(--key); cursor: pointer; user-select: none; }
+.table-wrap td { color: var(--foreground); }
+.cm-hover-info { max-width: 420px; padding: 6px 10px; font-size: 11px; }
+.cm-hover-info pre { margin: 4px 0 0; font: 11px/1.5 var(--mono); white-space: pre-wrap; word-break: break-all; }

@@ -10,6 +10,9 @@ import { icon } from './icons.js';
 import { createExplorer } from './explorer.js';
 import { CodeMinimap } from './minimap.js';
 import { createSharing } from './share.js';
+import { createTools } from './tools.js';
+import { repairText } from './tools-core.js';
+import { parseDocument, formatDocument } from './core.js';
 import { inject } from '@vercel/analytics';
 
 if (import.meta.env.PROD) {
@@ -48,7 +51,11 @@ $('#app').innerHTML = `
     <section id="editor-page" aria-label="JSON 编辑器">
       <div class="workbench editor-workbench">
         <div class="toolbar">
-          <div class="toolbar-main">${button('format', '格式化', 'format', 'primary', '单行 JSON 双击格式化，或 ⌘ / Ctrl + Shift + F')}${button('compact', '压缩', 'compact')}${button('check', '校验', 'validate')}<span class="divider"></span><select id="indent" aria-label="缩进空格数"><option value="2">2 空格</option><option value="4">4 空格</option><option value="8">8 空格</option></select></div>
+          <div class="toolbar-main">${button('format', '格式化', 'format', 'primary', '单行 JSON 双击格式化，或 ⌘ / Ctrl + Shift + F')}${button('compact', '压缩', 'compact')}${button('check', '校验', 'validate')}<div class="menu"><button class="btn" data-action="tools-menu" aria-haspopup="menu" aria-expanded="false" title="转义、修复、类型生成、导出、JSONPath、表格">${icon('wand')}<span>工具</span>${icon('down')}</button><div class="menu-list" id="tools-menu" role="menu" hidden>${[
+            ['unescape', '展开嵌套转义', '把字符串里的 JSON 还原为结构'], ['escape', '转义为字符串', '整体变为一个 JSON 字符串'], ['repair', '修复 / 提取 JSON', '注释、单引号、尾逗号、cURL、fetch、日志'], null,
+            ['ts', '生成 TypeScript 类型', ''], ['zod', '生成 Zod Schema', ''], ['csv', '导出 CSV', ''], ['yaml', '导出 YAML', ''], ['env', '导出 .env', ''], ['mock', 'Mock 数据', '按结构扩充到 N 条'], null,
+            ['jsonpath', 'JSONPath 过滤', ''], ['table', '表格视图', ''], ['history', '历史快照', ''],
+          ].map(item => item ? `<button role="menuitem" data-tool="${item[0]}"><span>${item[1]}</span>${item[2] ? `<small>${item[2]}</small>` : ''}</button>` : '<hr />').join('')}</div></div><span class="divider"></span><select id="indent" aria-label="缩进空格数"><option value="2">2 空格</option><option value="4">4 空格</option><option value="8">8 空格</option></select><label class="check-inline" title="格式化时按字母顺序排列对象字段"><input id="sort-keys" type="checkbox" />键排序</label></div>
           <div class="toolbar-end">${button('share', '分享', 'share', 'share-button', '生成分享链接，7 天有效')}${button('search', '搜索', 'search', '', '搜索字段、值或路径 · ⌘ / Ctrl + F')}<span class="divider"></span>${iconButton('copy', '复制 JSON', 'copy')}${iconButton('download', '下载 JSON', 'download')}${iconButton('trash', '清空 JSON（可撤销）', 'clear')}</div>
         </div>
         <div class="shared-banner" id="shared-banner" role="status" hidden><span id="shared-status">正在加载分享…</span><a class="btn" href="/" target="_blank" rel="noopener noreferrer">打开编辑器</a></div>
@@ -68,7 +75,7 @@ $('#app').innerHTML = `
       </div>
     </section>
     <section id="diff-page" aria-label="JSON 结构对比" hidden>
-      <div class="diff-options"><label><input type="checkbox" checked disabled /> 忽略对象字段顺序</label><label title="保留重复项数量，未匹配的元素分别列为新增和删除"><input id="ignore-array" type="checkbox" /> 忽略数组顺序</label></div>
+      <div class="diff-options"><label><input type="checkbox" checked disabled /> 忽略对象字段顺序</label><label title="保留重复项数量，未匹配的元素分别列为新增和删除"><input id="ignore-array" type="checkbox" /> 忽略数组顺序</label><label class="ignore-field" title="逗号分隔。字段名匹配任意层级；以 $ 开头为路径，数组下标可写 [*]">忽略字段 <input id="ignore-fields" placeholder="timestamp, requestId, $.data[*].traceId" spellcheck="false" autocomplete="off" /></label></div>
       <div class="diff-editors">${['left', 'right'].map((side, i) => `<div class="diff-document workbench"><div class="document-bar"><strong>${i ? '目标 JSON' : '原始 JSON'}</strong><div class="document-actions">${iconButton('format', `格式化${i ? '目标' : '原始'} JSON`, `format-${side}`)}${iconButton('copy', `复制${i ? '目标' : '原始'} JSON`, `copy-${side}`)}${iconButton('trash', `清空${i ? '目标' : '原始'} JSON（可撤销）`, `clear-${side}`)}</div></div><div class="error-banner" id="${side}-error" hidden></div><div class="editor-host diff-host" id="${side}-host"></div><div class="statusbar"><span class="validation-status" id="${side}-status">待输入</span><span id="${side}-lines"></span></div></div>`).join('')}<button class="swap-button" data-action="swap" title="交换两侧内容" aria-label="交换两侧内容">${icon('swap')}</button></div>
       <div class="diff-result workbench"><div class="result-heading"><div><h2>差异</h2><span id="diff-summary" role="status">等待两侧输入 JSON</span></div><div class="result-actions"><span id="diff-time"></span>${button('download', '导出差异', 'export-diff', 'quiet')}</div></div><div class="diff-result-tools"><div class="filter-tabs" role="tablist" aria-label="差异类型">${[['all', '全部'], ['added', '新增'], ['removed', '删除'], ['changed', '修改']].map(([kind, label]) => `<button class="${kind === 'all' ? 'active' : ''}" data-action="filter-${kind}" role="tab" aria-selected="${kind === 'all'}">${label}<span id="count-${kind}">0</span></button>`).join('')}</div><label class="search-field compact-search">${icon('search')}<input id="diff-search" placeholder="筛选路径" aria-label="筛选差异路径" /></label></div><div class="diff-column-header"><span>变更</span><span>JSON 路径</span><span>原始值</span><span>目标值</span></div><div id="diff-list" class="virtual-list diff-list"></div><div class="diff-result-footer"><span id="diff-filter-info">0 处差异</span><span>点击差异定位代码</span></div></div>
     </section>
@@ -76,6 +83,7 @@ $('#app').innerHTML = `
   <div class="busy-indicator" id="busy" role="status" hidden><span class="spinner"></span><span id="busy-text"></span><button data-action="cancel">取消</button></div>
   <div id="toast" role="status" hidden></div>
   <dialog id="share-dialog" aria-labelledby="share-title"><div class="dialog-title"><h2 id="share-title">分享 JSON</h2><button class="icon-btn" data-share-close aria-label="关闭分享">${icon('close')}</button></div><p class="share-note">分享当前内容的独立副本，对方可自由编辑，不影响你的原文。持有链接的人均可访问，7 天后自动过期。</p><p role="status" class="share-status"></p><input class="share-link" readonly aria-label="分享链接" hidden /><div class="share-actions"><button class="btn primary" data-share-copy disabled>${icon('copy')}<span>复制链接</span></button></div></dialog>
+  <dialog id="tool-dialog" class="tool-dialog" aria-label="JSON 工具"></dialog>
   <dialog id="help-dialog"><div class="dialog-title"><h2>快捷键与使用说明</h2>${iconButton('close', '关闭说明', 'close-help')}</div><div class="help-section"><p>直接粘贴 JSON。单行压缩 JSON 双击左键即可格式化；多行已排版内容双击选中单词，再按 ⌘ / Ctrl + C 复制。输入或修改对比选项后，会自动更新差异；两侧滚动条同步。</p><p>对比默认按数组索引匹配。忽略数组顺序时，未匹配项分别显示为删除与新增。大整数保留原始精度，重复字段需先消除歧义才能对比。</p><p>搜索覆盖完整文档，只匹配字段名或值本身，不因祖先路径命中而列出子项；输入完整路径可精确查找。搜索结果浮在搜索框下方，点击结果后收起；Esc、关闭按钮或点击外部可收起，再次点击搜索框可展开。结果显示路径与数组下标。代码右侧缩略图支持点击、拖动、滚轮和收起/展开；橙色标记显示搜索命中行，最右侧标记覆盖全文。点击结果或图中字段可定位代码；当前位置栏跟随光标更新，可复制路径。结构图支持拖动、缩放，全部节点默认展开，无分页。光标移动时自动定位图中的对应 key；缩小为概览时显示节点轮廓，放大后显示字段。</p><p>关闭或刷新页面会清空内容，需要保留时请复制或下载。</p></div><div class="shortcut-list"><div><span>格式化</span><kbd>双击左键 / ⌘ Ctrl + Shift + F</kbd></div><div><span>搜索字段 / 值 / 路径</span><kbd>⌘ / Ctrl + F</kbd></div><div><span>下载 JSON</span><kbd>⌘ / Ctrl + S</kbd></div><div><span>撤销</span><kbd>⌘ / Ctrl + Z</kbd></div><div><span>切换编辑器 / 对比</span><kbd>Alt + 1 / 2</kbd></div></div></dialog>
 `;
 
@@ -184,7 +192,7 @@ for (const side of ['editor', 'left', 'right']) {
     const pos = view.state.selection.main.head, line = view.state.doc.lineAt(pos);
     $('#cursor-position').textContent = `行 ${fmt(line.number)}，列 ${fmt(pos - line.from + 1)}`;
     explorer?.cursor(view);
-  }, () => transform('format', side), () => download(side), side === 'editor' ? 'JSON 代码编辑器' : side === 'left' ? '原始 JSON 代码编辑器' : '目标 JSON 代码编辑器', side === 'editor' ? () => explorer?.search() : null);
+  }, () => transform('format', side), () => download(side), side === 'editor' ? 'JSON 代码编辑器' : side === 'left' ? '原始 JSON 代码编辑器' : '目标 JSON 代码编辑器', side === 'editor' ? () => explorer?.search() : null, text => smartPaste(side, text));
   updateStats(side);
 }
 const pauseScrollSync = linkEditorScroll(docs.left.view, docs.right.view);
@@ -229,7 +237,7 @@ async function transform(operation, side = 'editor') {
   await task(operation === 'format' ? '正在格式化 JSON…' : '正在压缩 JSON…', async () => {
     await ensureDoc(side);
     const revision = docs[side].revision;
-    const { result, elapsed } = await rpc(operation, { side, indent: state.indent });
+    const { result, elapsed } = await rpc(operation, { side, indent: state.indent, sortKeys: $('#sort-keys').checked });
     if (revision !== docs[side].revision) throw new Error('内容已更改，未覆盖当前文档，请重试');
     if (result !== getText(side)) setText(side, result);
     await ensureDoc(side);
@@ -299,11 +307,12 @@ async function copy(side = 'editor') {
   try { await navigator.clipboard.writeText(getText(side)); toast('已复制到剪贴板'); }
   catch { toast('浏览器未允许复制，请在编辑器中全选后复制'); }
 }
+const ignoreList = () => $('#ignore-fields').value.split(/[,，\s]+/).filter(Boolean);
 async function compare() {
   if (state.busy) return null;
   $('#diff-summary').textContent = '正在对比…';
   return rpc('compare-input', {
-    left: getText('left'), right: getText('right'), ignoreArrayOrder: $('#ignore-array').checked,
+    left: getText('left'), right: getText('right'), ignoreArrayOrder: $('#ignore-array').checked, ignore: ignoreList(),
   });
 }
 function showComparison({ result, elapsed }) {
@@ -360,7 +369,7 @@ function filterDiff() {
 function exportDiff() {
   if (!state.diff || !state.diffFresh) { toast('正在等待有效的对比结果'); return; }
   const left = getText('left'), right = getText('right');
-  const report = { options: { ignoreObjectKeyOrder: true, ignoreArrayOrder: $('#ignore-array').checked }, counts: state.diff.counts,
+  const report = { options: { ignoreObjectKeyOrder: true, ignoreArrayOrder: $('#ignore-array').checked, ignoreFields: ignoreList() }, counts: state.diff.counts,
     differences: state.diff.rows.map(row => ({ type: row.kind, path: row.path,
       beforeJSON: row.leftOffset === undefined ? null : left.slice(row.leftOffset, row.leftOffset + row.leftLength),
       afterJSON: row.rightOffset === undefined ? null : right.slice(row.rightOffset, row.rightOffset + row.rightLength) })) };
@@ -380,7 +389,59 @@ function clearDocument(side = 'editor') {
   toast('已清空', () => undo(docs[side].view));
   docs[side].view.focus();
 }
+function replaceEditor(text, label, side = 'editor') {
+  setText(side, text);
+  toast(`已写入${label}`, () => undo(docs[side].view));
+}
+// 粘贴的不是合法 JSON 时，尝试从 cURL / fetch / 日志中提取并修复；失败则按普通粘贴处理。
+function smartPaste(side, text) {
+  if (text.length > 2 * 1024 * 1024 || !text.trim()) return null;
+  try { JSON.parse(text); return null; } catch { /* 继续尝试修复 */ }
+  try {
+    const fixed = repairText(text);
+    if (!fixed.steps.length) return null;
+    toast(`已自动${fixed.steps.join('、')}`, () => undo(docs[side].view));
+    return formatDocument(parseDocument(fixed.text), state.indent);
+  } catch { return null; }
+}
+const tools = createTools({
+  dialog: $('#tool-dialog'), rpc, ensureDoc: () => ensureDoc('editor'), getText: () => getText('editor'), getIndent: () => state.indent,
+  replaceEditor: (text, label) => replaceEditor(text, label), locate: (offset, length) => locate('editor', offset, length), toast,
+});
+const toolActions = {
+  unescape: () => task('正在展开嵌套转义…', async () => {
+    await ensureDoc('editor');
+    const { result } = await rpc('unescape', { side: 'editor', indent: state.indent });
+    if (!result.count) { toast('没有可展开的嵌套 JSON'); return; }
+    replaceEditor(result.text, `展开后的内容（${result.count} 处）`);
+  }),
+  escape: () => task('正在转义…', async () => {
+    await ensureDoc('editor');
+    const { result } = await rpc('escape', { side: 'editor' });
+    replaceEditor(result, '转义后的字符串');
+  }),
+  repair: () => task('正在修复…', async () => {
+    const { result } = await rpc('repair', { text: getText('editor'), indent: state.indent });
+    if (!result.steps.length) { toast('已是合法 JSON，无需修复'); return; }
+    replaceEditor(result.text, `修复结果（${result.steps.join('、')}）`);
+  }),
+};
+const closeMenu = () => { $('#tools-menu').hidden = true; $('[data-action="tools-menu"]').setAttribute('aria-expanded', 'false'); };
+document.addEventListener('click', event => {
+  const item = event.target.closest('[data-tool]');
+  if (item && $('#tools-menu').contains(item)) {
+    closeMenu();
+    const name = item.dataset.tool;
+    if (toolActions[name]) toolActions[name](); else tools.open(name);
+  } else if (!event.target.closest('.menu')) closeMenu();
+});
+document.addEventListener('keydown', event => { if (event.key === 'Escape') closeMenu(); });
 const actions = {
+  'tools-menu': () => {
+    const menu = $('#tools-menu');
+    menu.hidden = !menu.hidden;
+    $('[data-action="tools-menu"]').setAttribute('aria-expanded', String(!menu.hidden));
+  },
   'nav-editor': () => showPage('editor'), 'nav-diff': () => showPage('diff'),
   search: () => explorer.search(), share: () => sharing.share(),
   format: () => transform('format'), compact: () => transform('compact'),
@@ -404,6 +465,7 @@ document.addEventListener('click', event => {
 $('#indent').onchange = event => { state.indent = Number(event.target.value); for (const doc of Object.values(docs)) doc.view.setIndent(state.indent); };
 $('#diff-search').oninput = event => { state.diffQuery = event.target.value; filterDiff(); };
 $('#ignore-array').onchange = scheduleComparison;
+$('#ignore-fields').oninput = scheduleComparison;
 $('#help-dialog').addEventListener('click', event => { if (event.target === $('#help-dialog')) $('#help-dialog').close(); });
 window.addEventListener('beforeunload', event => { if (Object.values(docs).some(doc => doc.dirty)) { event.preventDefault(); event.returnValue = ''; } });
 window.addEventListener('keydown', event => {
@@ -432,7 +494,7 @@ const sharing = createSharing({
     $('#shared-status').textContent = `分享副本 · 修改仅保留在当前页面 · 链接 ${new Date(expiresAt).toLocaleString('zh-CN', { hour12: false })} 过期`;
   },
 });
-$('#help-dialog .help-section').append(Object.assign(document.createElement('p'), { textContent: '点击「分享」会上传当前 JSON 副本，生成 7 天有效的链接。对方可以自由操作自己的副本，不影响原文或原链接。普通编辑、搜索和对比仍在本地完成。' }));
+$('#help-dialog .help-section').append(Object.assign(document.createElement('p'), { textContent: '「工具」菜单提供转义展开、JSON 修复与提取、类型生成、导出、JSONPath、表格与历史快照；对比页可填写要忽略的字段。点击「分享」会上传当前 JSON 副本，生成 7 天有效的链接。对方可以自由操作自己的副本，不影响原文或原链接。普通编辑、搜索和对比仍在本地完成。' }));
 if (isShareView) {
   document.title = 'JSON 分享';
   $('#shared-banner').hidden = false;
