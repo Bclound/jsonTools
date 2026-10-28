@@ -5,12 +5,73 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#282a36" />
   <meta name="referrer" content="no-referrer" />
-  <meta name="description" content="JSON 格式化、校验与自动结构对比。" />
-  <title>JSON 格式化与对比</title>
+  <meta name="description" content="JSON 工作台：免费在线 JSON 格式化、校验、压缩与结构对比工具，保留大整数精度，支持可视化结构图、JSONPath 和 TypeScript 类型生成。编辑与对比在浏览器本地处理，无需登录。" />
+  <title>JSON 工作台 - 在线 JSON 格式化、校验与结构对比</title>
+  <link rel="canonical" href="https://json.aiworld.cool/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="JSON 工作台" />
+  <meta property="og:locale" content="zh_CN" />
+  <meta property="og:url" content="https://json.aiworld.cool/" />
+  <meta property="og:title" content="JSON 工作台 - 在线 JSON 格式化、校验与结构对比" />
+  <meta property="og:description" content="免费、无需登录的 JSON 工具。保留大整数精度，本地格式化与结构对比，支持可视化结构图、JSONPath 和类型生成。" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="JSON 工作台 - 在线 JSON 格式化、校验与结构对比" />
+  <meta name="twitter:description" content="免费、无需登录的 JSON 工具。保留大整数精度，本地格式化与结构对比，支持可视化结构图、JSONPath 和类型生成。" />
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://json.aiworld.cool/#website",
+        "name": "JSON 工作台",
+        "url": "https://json.aiworld.cool/",
+        "inLanguage": "zh-CN"
+      },
+      {
+        "@type": "WebApplication",
+        "@id": "https://json.aiworld.cool/#application",
+        "name": "JSON 工作台",
+        "url": "https://json.aiworld.cool/",
+        "description": "免费在线 JSON 格式化、校验、压缩与结构对比工具。编辑与对比在浏览器本地处理，只有主动分享才上传 JSON 副本。",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires JavaScript",
+        "inLanguage": "zh-CN",
+        "isAccessibleForFree": true,
+        "featureList": ["保留大整数精度的 JSON 格式化与压缩", "JSON 校验与错误定位", "JSON 结构对比与忽略字段", "可视化结构图与全局搜索", "JSONPath 过滤", "TypeScript 类型与 Zod Schema 生成", "有效期为 7 天的 JSON 分享"],
+        "sameAs": "https://github.com/Bclound/jsonTools"
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
+  <header class="app-header">
+    <h1 class="app-heading"><a class="app-brand" href="#editor" data-action="nav-editor" aria-label="JSON 工作台"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4H6v6l-3 2 3 2v6h2m8-16h2v6l3 2-3 2v6h-2"/></svg><span>JSON</span></a></h1>
+    <nav class="tool-tabs" aria-label="工具切换">
+      <button class="active" data-action="nav-editor" aria-current="page">编辑器</button>
+      <button data-action="nav-diff">对比</button>
+    </nav>
+    <div class="header-actions"><span>单行双击格式化 · 多行双击选词</span><a href="/guide.html" target="_blank" rel="noopener noreferrer">使用指南</a><button class="icon-btn" data-action="help" title="快捷键与使用说明" aria-label="快捷键与使用说明"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 16h10"/></svg></button></div>
+  </header>
   <div id="app"></div>
+  <dialog id="help-dialog" aria-labelledby="help-title">
+    <div class="dialog-title"><h2 id="help-title">快捷键与使用说明</h2><button class="icon-btn" data-action="close-help" aria-label="关闭说明"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></div>
+    <div class="help-section">
+      <p>JSON 工作台是免费的在线 JSON 格式化、校验、压缩与结构对比工具，无需注册或登录。编辑、搜索、格式化和对比在浏览器本地处理。</p>
+      <p>直接粘贴 JSON。单行压缩 JSON 双击左键即可格式化；多行已排版内容双击选中单词，再按 ⌘ / Ctrl + C 复制。输入或修改对比选项后，会自动更新差异；两侧滚动条同步。</p>
+      <p>对比默认忽略对象字段顺序，按数组索引匹配。忽略数组顺序时，未匹配项分别显示为删除与新增。格式化、压缩和对比保留大整数原始精度，重复字段需先消除歧义才能对比。</p>
+      <p>搜索覆盖完整文档，只匹配字段名或值本身，不因祖先路径命中而列出子项；输入完整路径可精确查找。搜索结果浮在搜索框下方，点击结果后收起；Esc、关闭按钮或点击外部可收起，再次点击搜索框可展开。结果显示路径与数组下标。代码右侧缩略图支持点击、拖动、滚轮和收起/展开；橙色标记显示搜索命中行，最右侧标记覆盖全文。点击结果或图中字段可定位代码；当前位置栏跟随光标更新，可复制路径。结构图支持拖动、缩放，全部节点默认展开，无分页。光标移动时自动定位图中的对应 key；缩小为概览时显示节点轮廓，放大后显示字段。</p>
+      <p>「工具」菜单提供转义展开、JSON 修复与提取、TypeScript 类型与 Zod Schema 生成、CSV / YAML / .env 导出、JSONPath 过滤、表格与历史快照；对比页可填写要忽略的字段。类型与 Schema 仅根据当前样本推断。</p>
+      <p>点击「分享」会上传当前 JSON 副本，生成 7 天有效的链接。持有链接的人均可访问。对方可以自由操作自己的副本，不影响原文或原链接。普通编辑、搜索和对比仍在本地完成。</p>
+      <p>关闭或刷新页面会清空未保存的内容，需要保留时请复制、下载，或手动保存历史快照到当前浏览器。</p>
+      <p><a href="/guide.html" target="_blank" rel="noopener noreferrer">阅读完整使用指南与常见问题</a> · <a href="https://github.com/Bclound/jsonTools" target="_blank" rel="noopener noreferrer">项目源码</a></p>
+    </div>
+    <div class="shortcut-list"><div><span>格式化</span><kbd>双击左键 / ⌘ Ctrl + Shift + F</kbd></div><div><span>搜索字段 / 值 / 路径</span><kbd>⌘ / Ctrl + F</kbd></div><div><span>下载 JSON</span><kbd>⌘ / Ctrl + S</kbd></div><div><span>撤销</span><kbd>⌘ / Ctrl + Z</kbd></div><div><span>切换编辑器 / 对比</span><kbd>Alt + 1 / 2</kbd></div></div>
+  </dialog>
+  <noscript><p>JSON 工作台的编辑与对比需要启用 JavaScript。你仍可阅读<a href="/guide.html">使用指南与常见问题</a>。</p></noscript>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

@@ -39,14 +39,6 @@ const button = (name, text, action, cls = '', title = '') => `<button class="btn
 const iconButton = (name, label, action) => `<button class="icon-btn" data-action="${action}" title="${label}" aria-label="${label}">${icon(name)}</button>`;
 
 $('#app').innerHTML = `
-  <header class="app-header">
-    <a class="app-brand" href="#editor" data-action="nav-editor" aria-label="JSON 工具">${icon('braces')}<span>JSON</span></a>
-    <nav class="tool-tabs" aria-label="工具切换">
-      <button class="active" data-action="nav-editor" aria-current="page">编辑器</button>
-      <button data-action="nav-diff">对比</button>
-    </nav>
-    <div class="header-actions"><span>单行双击格式化 · 多行双击选词</span>${iconButton('keyboard', '快捷键与使用说明', 'help')}</div>
-  </header>
   <main class="tool-content">
     <section id="editor-page" aria-label="JSON 编辑器">
       <div class="workbench editor-workbench">
@@ -84,7 +76,6 @@ $('#app').innerHTML = `
   <div id="toast" role="status" hidden></div>
   <dialog id="share-dialog" aria-labelledby="share-title"><div class="dialog-title"><h2 id="share-title">分享 JSON</h2><button class="icon-btn" data-share-close aria-label="关闭分享">${icon('close')}</button></div><p class="share-note">分享当前内容的独立副本，对方可自由编辑，不影响你的原文。持有链接的人均可访问，7 天后自动过期。</p><p role="status" class="share-status"></p><input class="share-link" readonly aria-label="分享链接" hidden /><div class="share-actions"><button class="btn primary" data-share-copy disabled>${icon('copy')}<span>复制链接</span></button></div></dialog>
   <dialog id="tool-dialog" class="tool-dialog" aria-label="JSON 工具"></dialog>
-  <dialog id="help-dialog"><div class="dialog-title"><h2>快捷键与使用说明</h2>${iconButton('close', '关闭说明', 'close-help')}</div><div class="help-section"><p>直接粘贴 JSON。单行压缩 JSON 双击左键即可格式化；多行已排版内容双击选中单词，再按 ⌘ / Ctrl + C 复制。输入或修改对比选项后，会自动更新差异；两侧滚动条同步。</p><p>对比默认按数组索引匹配。忽略数组顺序时，未匹配项分别显示为删除与新增。大整数保留原始精度，重复字段需先消除歧义才能对比。</p><p>搜索覆盖完整文档，只匹配字段名或值本身，不因祖先路径命中而列出子项；输入完整路径可精确查找。搜索结果浮在搜索框下方，点击结果后收起；Esc、关闭按钮或点击外部可收起，再次点击搜索框可展开。结果显示路径与数组下标。代码右侧缩略图支持点击、拖动、滚轮和收起/展开；橙色标记显示搜索命中行，最右侧标记覆盖全文。点击结果或图中字段可定位代码；当前位置栏跟随光标更新，可复制路径。结构图支持拖动、缩放，全部节点默认展开，无分页。光标移动时自动定位图中的对应 key；缩小为概览时显示节点轮廓，放大后显示字段。</p><p>关闭或刷新页面会清空内容，需要保留时请复制或下载。</p></div><div class="shortcut-list"><div><span>格式化</span><kbd>双击左键 / ⌘ Ctrl + Shift + F</kbd></div><div><span>搜索字段 / 值 / 路径</span><kbd>⌘ / Ctrl + F</kbd></div><div><span>下载 JSON</span><kbd>⌘ / Ctrl + S</kbd></div><div><span>撤销</span><kbd>⌘ / Ctrl + Z</kbd></div><div><span>切换编辑器 / 对比</span><kbd>Alt + 1 / 2</kbd></div></div></dialog>
 `;
 
 const state = { page: 'editor', indent: 2, busy: false, diff: null, filter: 'all', diffQuery: '', diffFresh: false, selectedDiff: null };
@@ -494,7 +485,6 @@ const sharing = createSharing({
     $('#shared-status').textContent = `分享副本 · 修改仅保留在当前页面 · 链接 ${new Date(expiresAt).toLocaleString('zh-CN', { hour12: false })} 过期`;
   },
 });
-$('#help-dialog .help-section').append(Object.assign(document.createElement('p'), { textContent: '「工具」菜单提供转义展开、JSON 修复与提取、类型生成、导出、JSONPath、表格与历史快照；对比页可填写要忽略的字段。点击「分享」会上传当前 JSON 副本，生成 7 天有效的链接。对方可以自由操作自己的副本，不影响原文或原链接。普通编辑、搜索和对比仍在本地完成。' }));
 if (isShareView) {
   document.title = 'JSON 分享';
   $('#shared-banner').hidden = false;

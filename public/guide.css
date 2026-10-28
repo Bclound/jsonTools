@@ -1,0 +1,42 @@
+:root {
+  color-scheme: dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #f8f8f2;
+  background: #282a36;
+  font-synthesis: none;
+  line-height: 1.8;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+a { color: #8be9fd; text-underline-offset: 4px; }
+a:hover { color: #ff79c6; }
+a:focus-visible { outline: 2px solid #ff79c6; outline-offset: 4px; }
+header, footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; padding: 18px max(20px, calc((100% - 920px) / 2)); background: #191a21; }
+header nav { display: flex; flex-wrap: wrap; gap: 18px; font-size: 14px; }
+.brand { color: #f8f8f2; font-weight: 650; text-decoration: none; }
+main { max-width: 920px; margin: auto; padding: 36px 20px 48px; overflow-wrap: anywhere; }
+h1 { font-size: clamp(26px, 4vw, 36px); line-height: 1.4; margin: 0 0 20px; }
+h2 { font-size: 22px; line-height: 1.5; scroll-margin-top: 24px; }
+h3 { font-size: 17px; }
+p { margin: 16px 0; }
+.intro { font-size: 18px; }
+.contents { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 28px 0; padding: 18px 20px; background: #21222c; border: 1px solid #44475a; }
+section { padding: 12px 0 24px; border-bottom: 1px solid #44475a; }
+code { font: .9em/1.7 "SFMono-Regular", Consolas, "Liberation Mono", monospace; color: #f1fa8c; }
+pre { overflow: auto; padding: 18px; background: #21222c; border: 1px solid #44475a; border-radius: 3px; }
+dt { color: #bd93f9; font-weight: 600; margin-top: 18px; }
+dd { margin: 6px 0 0; }
+li { margin: 8px 0; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+caption { text-align: left; font-weight: 600; margin-bottom: 10px; }
+th, td { text-align: left; border: 1px solid #44475a; padding: 12px; vertical-align: top; min-width: 130px; }
+th { background: #21222c; }
+footer { color: #b5b7c4; font-size: 13px; }
+.skip-link { position: absolute; top: -80px; left: 20px; padding: 8px 14px; background: #191a21; }
+.skip-link:focus { top: 8px; }
+@media (max-width: 600px) {
+  main { padding-top: 28px; }
+  h2 { font-size: 20px; }
+  .intro { font-size: 16px; }
+}

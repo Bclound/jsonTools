@@ -4,13 +4,17 @@
 
 ## 在线试用
 
-**[打开 JSON 工作台](https://json-tools-alpha.vercel.app/)** · 无需注册或登录，打开即可使用。
+**[打开 JSON 工作台](https://json.aiworld.cool/)** · [使用指南与常见问题](https://json.aiworld.cool/guide.html) · 无需注册或登录，打开即可使用。
 
 在「编辑器」中粘贴 JSON，即可格式化、校验、搜索并查看结构图；切换到「对比」，粘贴两份 JSON 后会自动列出结构差异。
 
 平时的 JSON 编辑、搜索和对比仅在浏览器本地处理。只有点击「分享」时，当前内容才会上传保存 7 天并生成链接。对方打开的是独立副本，可正常编辑、格式化、搜索和对比，修改不会影响分享者或原链接；再次分享会创建新的副本。刷新或关闭页面前，请复制或下载本地修改。
 
 生产版本使用 Vercel Web Analytics 统计访客与页面浏览量，不采集 JSON 内容、搜索词或分享 ID；上报前移除页面地址中的查询参数和 hash。本地开发不启用访问统计。
+
+## 搜索与 AI 可发现性
+
+首页的应用元信息、页头和帮助说明直接写入 HTML；`public/guide.html` 提供无需 JavaScript 的使用说明、示例与数据处理说明。`public/robots.txt` 开放公开页面抓取并排除 `/api/`，`public/sitemap.xml` 只列出首页和指南。分享 API 保留 `X-Robots-Tag: noindex, nofollow`，分享内容不进入站点地图。更换正式域名或新增公开页面时，同步更新这些文件中的 canonical、结构化数据和站点地图。上线后可将站点地图提交到 Google Search Console 与 Bing Webmaster Tools，并观察收录和引用数据。
 
 ## 本地运行
 

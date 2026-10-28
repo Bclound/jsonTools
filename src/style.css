@@ -88,6 +88,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   border-bottom: 1px solid var(--border);
   background: var(--chrome-bg);
 }
+.app-heading { margin: 0; flex: none; }
 .app-brand { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--foreground); }
 .app-brand .icon { width: 20px; height: 20px; color: var(--key); }
 .tool-tabs { display: flex; height: 100%; gap: 0; }
@@ -95,6 +96,8 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .tool-tabs button.active { color: var(--button-text); border-top-color: var(--accent); background: var(--editor-bg); font-weight: 500; }
 .tool-tabs button:hover { background: var(--hover); }
 .header-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 11px; }
+.header-actions > a { white-space: nowrap; }
+.header-actions > a:hover, .help-section a { color: var(--link); text-decoration: underline; text-underline-offset: 3px; }
 .tool-content { padding: 0; }
 .workbench { background: var(--editor-bg); border: 1px solid var(--border); border-radius: 0; overflow: hidden; }
 .editor-workbench { display: flex; flex-direction: column; height: calc(100dvh - 42px); min-height: 430px; }
