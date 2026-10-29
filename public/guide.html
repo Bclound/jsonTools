@@ -32,6 +32,8 @@
     "about": { "@id": "https://json.aiworld.cool/#application" }
   }
   </script>
+  <script charset="UTF-8" id="LA_COLLECT" src="//sdk.51.la/js-sdk-pro.min.js"></script>
+  <script>LA.init({id:"LMgkOWy0g8v4XHGL",ck:"LMgkOWy0g8v4XHGL",autoTrack:true,hashMode:true})</script>
 </head>
 <body>
   <a class="skip-link" href="#main">跳到正文</a>
@@ -112,7 +114,8 @@
       <h3>分享后，对方修改会影响我的 JSON 吗？</h3>
       <p>不会。接收方打开的是独立副本，可以编辑、格式化、搜索和对比；修改不会写回原链接，也不会影响分享者。再次分享会创建新的副本。持有链接的人均可访问分享内容，请在分享前移除口令、令牌等敏感信息。</p>
       <h3>站点是否有访问统计？</h3>
-      <p>工具页的生产版本使用 Vercel Web Analytics 统计访问量。统计不包含 JSON 原文、搜索词或分享 ID，上报前会移除 URL 查询参数和 hash。</p>
+      <p>首页与使用指南使用 51LA 统计访问量，并开启事件分析和 hash 路由统计。51LA 会上报完整页面地址，包括查询参数和 hash；打开分享链接时，地址中的分享 ID 也会进入统计。</p>
+      <p>工具页的生产版本同时使用 Vercel Web Analytics。Vercel 统计不包含 JSON 原文、搜索词或分享 ID，上报前会移除 URL 查询参数和 hash。</p>
     </section>
 
     <section aria-labelledby="limits">
@@ -139,6 +142,6 @@
       </dl>
     </section>
   </main>
-  <footer><a href="/">返回 JSON 工作台</a><span>内容更新：<time datetime="2026-10-27">2026-10-27</time></span></footer>
+  <footer><a href="/">返回 JSON 工作台</a><span>内容更新：<time datetime="2026-10-29">2026-10-29</time></span></footer>
 </body>
 </html>
