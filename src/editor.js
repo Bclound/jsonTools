@@ -160,7 +160,7 @@ export function createEditor(parent, doc, onChange, onCursor, onFormat, onSave, 
         dblclick(event, editor) {
           if (event.button !== 0 || !event.target.closest('.cm-content')) return false;
           // 已排版的内容保留编辑器原生选词；单行 JSON 才触发双击格式化。
-          if (editor.state.doc.lines === 1 && /^[\s]*[\[{]/.test(editor.state.sliceDoc(0, Math.min(128, editor.state.doc.length)))) onFormat();
+          if (editor.state.doc.lines === 1 && /^\s*(?:[\[{]|"(?: |\\[nrt])*(?:[\[{]|\\u))/.test(editor.state.doc.line(1).text)) onFormat();
           return false;
         },
       }),

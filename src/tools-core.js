@@ -22,6 +22,18 @@ export function serialize(node, text, { sort = false, tweak } = {}) {
 
 export const sortedFormat = (doc, indent) => formatDocument(parseDocument(serialize(doc.root, doc.text, { sort: true })), indent);
 
+export function formatInput(doc, indent, sortKeys = false) {
+  if (doc.root.type === 'string' && /^\s*[{[]/.test(doc.root.value)) {
+    try {
+      doc = parseDocument(doc.root.value);
+    } catch (error) {
+      // 语法不合法的内容仍是普通字符串；深度限制等非语法错误继续报告。
+      if (error.offset === undefined) throw error;
+    }
+  }
+  return sortKeys ? sortedFormat(doc, indent) : formatDocument(doc, indent);
+}
+
 // ---------- 类型推断：把所有同级元素合并为一个类型 ----------
 const emptyType = () => ({ prims: new Set(), obj: null, count: 0, arr: null });
 

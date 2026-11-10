@@ -1,5 +1,5 @@
 import { parseDocument, formatDocument, compactDocument, treeRows, compareInputDocuments } from './core.js';
-import { sortedFormat, toTypeScript, toZod, toCsv, toYaml, toEnv, mockDocument, tableData, queryPath, unescapeJson, repairText } from './tools-core.js';
+import { formatInput, toTypeScript, toZod, toCsv, toYaml, toEnv, mockDocument, tableData, queryPath, unescapeJson, repairText } from './tools-core.js';
 import { findFocus, searchDocument, graphDocument } from './explore-core.js';
 
 const documents = new Map();
@@ -22,7 +22,7 @@ self.onmessage = ({ data }) => {
     } else {
       const doc = documents.get(side);
       if (!doc) throw new Error('请先输入有效的 JSON');
-      if (operation === 'format') result = options.sortKeys ? sortedFormat(doc, options.indent) : formatDocument(doc, options.indent);
+      if (operation === 'format') result = formatInput(doc, options.indent, options.sortKeys);
       else if (operation === 'generate') {
         const { kind, count, indent } = options;
         result = kind === 'ts' ? toTypeScript(doc.root) : kind === 'zod' ? toZod(doc.root) : kind === 'csv' ? toCsv(doc.root, doc.text)

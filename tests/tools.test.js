@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseDocument, compareDocuments } from '../src/core.js';
-import { toTypeScript, toZod, toCsv, toYaml, toEnv, tableData, mockDocument, unescapeJson, repairText, lenientJson, queryPath, sortedFormat, hoverInfo } from '../src/tools-core.js';
+import { toTypeScript, toZod, toCsv, toYaml, toEnv, tableData, mockDocument, unescapeJson, repairText, lenientJson, queryPath, sortedFormat, formatInput, hoverInfo } from '../src/tools-core.js';
 
 const doc = text => parseDocument(text);
 const root = text => doc(text).root;
@@ -58,6 +58,29 @@ test('Mock：循环扩充并让 id 自增', () => {
 test('键排序保留原始数字', () => {
   assert.equal(sortedFormat(doc('{"b":9223372036854775807,"a":{"z":1,"y":[{"d":1,"c":2}]}}'), 1),
     '{\n "a": {\n  "y": [\n   {\n    "c": 2,\n    "d": 1\n   }\n  ],\n  "z": 1\n },\n "b": 9223372036854775807\n}');
+});
+
+test('格式化整段转义的对象或数组，只展开最外层并保留数字原文', () => {
+  const inner = '{"buttons":{},"sort_columns":[],"result_columns":[{"id":9223372036854775807,"value":"[1,2]","n":1e999}]}';
+  for (const text of [inner, `  \n[${inner}]\t`]) {
+    for (const sorted of [false, true]) {
+      const actual = formatInput(doc(JSON.stringify(text)), 4, sorted);
+      assert.equal(actual, formatInput(doc(text), 4, sorted));
+      assert.match(actual, /\n {4}/);
+      assert.match(actual, /"id": 9223372036854775807/);
+      assert.match(actual, /"n": 1e999/);
+      assert.match(actual, /"value": "\[1,2\]"/);
+    }
+  }
+});
+
+test('格式化保留普通字符串、标量文本和看似 JSON 的无效内容', () => {
+  for (const value of ['文本', 'true', '42', '{not json}', '[1,]', '{"a":1} 备注']) {
+    const text = JSON.stringify(value);
+    assert.equal(formatInput(doc(text), 2), text);
+  }
+  const deep = JSON.stringify('['.repeat(513) + '0' + ']'.repeat(513));
+  assert.throws(() => formatInput(doc(deep), 2), /512/);
 });
 
 test('展开 / 修复嵌套转义', () => {
