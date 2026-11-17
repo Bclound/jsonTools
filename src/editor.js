@@ -1,12 +1,13 @@
 import { EditorState, Compartment, StateEffect, StateField } from '@codemirror/state';
-import { EditorView, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, keymap, highlightActiveLine, drawSelection, dropCursor, rectangularSelection, Decoration, ViewPlugin, placeholder, hoverTooltip } from '@codemirror/view';
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { bracketMatching, foldGutter, foldKeymap, indentOnInput, syntaxHighlighting, HighlightStyle, indentUnit } from '@codemirror/language';
+import { EditorView, lineNumbers, highlightActiveLineGutter, highlightSpecialChars, keymap, highlightActiveLine, drawSelection, dropCursor, rectangularSelection, Decoration, ViewPlugin, WidgetType, placeholder, hoverTooltip } from '@codemirror/view';
+import { defaultKeymap, history, historyKeymap, indentWithTab, isolateHistory } from '@codemirror/commands';
+import { bracketMatching, foldGutter, foldKeymap, indentOnInput, syntaxHighlighting, HighlightStyle, indentUnit, getIndentUnit, syntaxTree } from '@codemirror/language';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
 import { json } from '@codemirror/lang-json';
 import { tags } from '@lezer/highlight';
-import { hoverInfo } from './tools-core.js';
+import { hoverInfo, embeddedJsonDocument, isSingleLineJson } from './tools-core.js';
+import { formatDocument } from './core.js';
 
 const theme = EditorView.theme({
   '&': { height: '100%', color: 'var(--editor-foreground)', backgroundColor: 'var(--editor-bg)', fontSize: '13px' },
@@ -34,6 +35,8 @@ const theme = EditorView.theme({
   '.cm-foldPlaceholder': { backgroundColor: 'var(--panel-header)', color: 'var(--muted)', borderColor: 'var(--border-strong)' },
   '&.cm-focused .cm-matchingBracket': { backgroundColor: 'var(--selection-match)', outline: '1px solid var(--subtle)' },
   '.cm-nonmatchingBracket': { color: 'var(--removed)' },
+  '.cm-embedded-json': { fontFamily: 'inherit', fontSize: '11px', lineHeight: '1.4', color: 'var(--link)', background: 'var(--panel-header)', border: '1px solid var(--border-strong)', borderRadius: '3px', padding: '0 5px', marginRight: '7px', verticalAlign: '1px' },
+  '.cm-embedded-json:hover': { background: 'var(--hover)' },
 }, { dark: true });
 const syntax = HighlightStyle.define([
   { tag: tags.propertyName, color: 'var(--key)' },
@@ -123,6 +126,53 @@ const searchHighlights = ViewPlugin.fromClass(class {
     }
   }
 }, { decorations: plugin => plugin.decorations });
+
+class EmbeddedJsonButton extends WidgetType {
+  constructor(from, to, doc) { super(); this.from = from; this.to = to; this.doc = doc; }
+  eq(other) { return this.from === other.from && this.to === other.to && this.doc.text === other.doc.text; }
+  toDOM(view) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'cm-embedded-json';
+    button.textContent = '展开 JSON';
+    button.title = '将此字符串转为对象或数组并格式化，可撤销';
+    button.setAttribute('aria-label', `展开 JSON：${button.title}`);
+    button.onclick = () => {
+      if (view.state.readOnly) return;
+      const pad = view.state.doc.lineAt(this.from).text.match(/^\s*/)[0];
+      const insert = formatDocument(this.doc, getIndentUnit(view.state)).replace(/\n/g, `\n${pad}`);
+      view.dispatch({
+        changes: { from: this.from, to: this.to, insert }, selection: { anchor: this.from },
+        annotations: isolateHistory.of('full'), userEvent: 'input', scrollIntoView: true,
+      });
+      view.focus();
+    };
+    return button;
+  }
+}
+
+function embeddedJsonDecorations(view) {
+  if (view.state.readOnly) return Decoration.none;
+  const marks = [];
+  for (const { from, to } of view.visibleRanges) {
+    syntaxTree(view.state).iterate({ from, to, enter(node) {
+      if (node.name !== 'String' || node.from < from || node.from >= to) return;
+      const doc = embeddedJsonDocument(view.state.sliceDoc(node.from, node.to));
+      if (doc) marks.push(Decoration.widget({ widget: new EmbeddedJsonButton(node.from, node.to, doc), side: -1 }).range(node.from));
+    } });
+  }
+  return Decoration.set(marks, true);
+}
+
+const embeddedJsonHints = ViewPlugin.fromClass(class {
+  constructor(view) { this.decorations = embeddedJsonDecorations(view); }
+  update(update) {
+    if (update.docChanged || update.viewportChanged || update.startState.readOnly !== update.state.readOnly || syntaxTree(update.startState) !== syntaxTree(update.state)) {
+      this.decorations = embeddedJsonDecorations(update.view);
+    }
+  }
+}, { decorations: plugin => plugin.decorations });
+
 export function createEditor(parent, doc, onChange, onCursor, onFormat, onSave, label, onSearch, smartPaste) {
   const indent = new Compartment();
   const readOnly = new Compartment();
@@ -132,7 +182,7 @@ export function createEditor(parent, doc, onChange, onCursor, onFormat, onSave, 
       diffRanges, diffHighlights, lineNumbers(), highlightActiveLineGutter(), highlightSpecialChars(), history(), foldGutter(),
       ...(onSearch ? [searchRanges, searchHighlights] : []),
       drawSelection(), dropCursor(), indentOnInput(), bracketMatching(), closeBrackets(), rectangularSelection(),
-      highlightActiveLine(), highlightSelectionMatches(), json(), theme, syntaxHighlighting(syntax),
+      highlightActiveLine(), highlightSelectionMatches(), json(), theme, syntaxHighlighting(syntax), embeddedJsonHints,
       placeholder('粘贴 JSON'),
       // 悬停数字或字符串时解码时间戳、JWT、Base64；超长单行不扫描。
       hoverTooltip((editor, pos) => {
@@ -158,9 +208,9 @@ export function createEditor(parent, doc, onChange, onCursor, onFormat, onSave, 
           return true;
         },
         dblclick(event, editor) {
-          if (event.button !== 0 || !event.target.closest('.cm-content')) return false;
-          // 已排版的内容保留编辑器原生选词；单行 JSON 才触发双击格式化。
-          if (editor.state.doc.lines === 1 && /^\s*(?:[\[{]|"(?: |\\[nrt])*(?:[\[{]|\\u))/.test(editor.state.doc.line(1).text)) onFormat();
+          if (event.button !== 0 || !event.target.closest('.cm-content') || event.target.closest('.cm-embedded-json')) return false;
+          // 首尾空行不影响单行判定；已排版的多行内容保留原生选词。
+          if (isSingleLineJson(editor.state.doc.iterLines())) onFormat();
           return false;
         },
       }),

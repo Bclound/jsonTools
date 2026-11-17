@@ -34,6 +34,23 @@ export function formatInput(doc, indent, sortKeys = false) {
   return sortKeys ? sortedFormat(doc, indent) : formatDocument(doc, indent);
 }
 
+export function embeddedJsonDocument(text) {
+  try {
+    const value = JSON.parse(text);
+    return typeof value === 'string' && /^\s*[{[]/.test(value) ? parseDocument(value) : null;
+  } catch { return null; }
+}
+
+export function isSingleLineJson(lines) {
+  let content = '';
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    if (content) return false;
+    content = line.trim();
+  }
+  return /^(?:[\[{]|"(?: |\\[nrt])*(?:[\[{]|\\u))/.test(content);
+}
+
 // ---------- 类型推断：把所有同级元素合并为一个类型 ----------
 const emptyType = () => ({ prims: new Set(), obj: null, count: 0, arr: null });
 

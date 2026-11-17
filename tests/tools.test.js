@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseDocument, compareDocuments } from '../src/core.js';
-import { toTypeScript, toZod, toCsv, toYaml, toEnv, tableData, mockDocument, unescapeJson, repairText, lenientJson, queryPath, sortedFormat, formatInput, hoverInfo } from '../src/tools-core.js';
+import { toTypeScript, toZod, toCsv, toYaml, toEnv, tableData, mockDocument, unescapeJson, repairText, lenientJson, queryPath, sortedFormat, formatInput, embeddedJsonDocument, isSingleLineJson, hoverInfo } from '../src/tools-core.js';
 
 const doc = text => parseDocument(text);
 const root = text => doc(text).root;
@@ -90,6 +90,28 @@ test('展开 / 修复嵌套转义', () => {
   assert.deepEqual(JSON.parse(text), { a: { b: [1] }, s: 'plain', q: '"quoted"' });
   assert.equal(unescapeJson(JSON.stringify(JSON.stringify({ k: 1 }))).text, '{"k":1}');
   assert.equal(unescapeJson('{"a":1}').count, 0);
+});
+
+test('行内展开只识别合法对象或数组字符串，并保留数字、重复字段及下一层字符串', () => {
+  const inner = '{"id":9223372036854775807,"n":1e999,"x":1,"x":2,"nested":"[1,2]"}';
+  const embedded = embeddedJsonDocument(JSON.stringify(inner));
+  assert.equal(embedded.text, inner);
+  assert.equal(embedded.duplicates.length, 1);
+  assert.equal(formatInput(embedded, 2), '{\n  "id": 9223372036854775807,\n  "n": 1e999,\n  "x": 1,\n  "x": 2,\n  "nested": "[1,2]"\n}');
+  assert.equal(embeddedJsonDocument(JSON.stringify(' \n[1,{"a":true}]\t')).root.type, 'array');
+  for (const value of ['文本', 'true', '42', '{bad}', '[1,]', '{/*comment*/"a":1}', '{"a":1}备注', JSON.stringify('{"a":1}'), '['.repeat(513) + '0' + ']'.repeat(513)]) {
+    assert.equal(embeddedJsonDocument(JSON.stringify(value)), null);
+  }
+  for (const text of ['"unfinished', '"\\x"', '{}', '[]', 'null', 'true', '42']) assert.equal(embeddedJsonDocument(text), null);
+});
+
+test('双击格式化忽略首尾空行，保留实际多行内容及普通文本的选词', () => {
+  for (const value of ['{"a":1}', '[1,2]', JSON.stringify('{"a":1}'), JSON.stringify('\n[1,2]')]) {
+    for (const pad of ['', '\n', '\r\n  \t']) assert.equal(isSingleLineJson(`${pad}${value}${pad}`.split(/\r\n?|\n/)), true);
+  }
+  for (const value of ['', '\n\t\n', 'plain text', '"ordinary string"', '{\n"a":1\n}', '[1,\n2]', '{"a":1}\n{"b":2}']) {
+    assert.equal(isSingleLineJson(value.split(/\r\n?|\n/)), false);
+  }
 });
 
 test('宽松 JSON、cURL、fetch、日志提取', () => {
