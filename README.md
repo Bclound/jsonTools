@@ -1,6 +1,6 @@
 # JSON 格式化与对比
 
-自用的 JSON 工具。编辑、搜索和对比在浏览器本地运行，分享功能使用 Vercel Functions 与 Upstash Redis。页面只保留编辑器与对比两个入口，初始内容为空，直接粘贴接口返回值使用。
+自用的 JSON 工具。编辑、搜索和对比在浏览器本地运行，分享功能使用 Vercel Functions 或 EdgeOne 云函数与 Upstash Redis。页面只保留编辑器与对比两个入口，初始内容为空，直接粘贴接口返回值使用。
 
 ## 在线试用
 
@@ -34,6 +34,8 @@ npm run dev
 编辑器右上角「分享」生成短链接，点击「复制链接」发送给同事。无需登录，持有链接的人均可访问。链接保存的是点击时的 JSON 原文，保留大整数、重复字段与转义；7 天后由 Redis 自动删除。普通编辑不会上传，也不会自动保存到分享链接。
 
 Vercel 部署时，连接一个 Upstash Redis 数据库，并配置服务端环境变量 `KV_REST_API_URL` 与 `KV_REST_API_TOKEN`（也支持 Upstash 的 `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`）。项目根目录的 `api/share.js` 负责创建和读取分享；无需额外路由配置。凭据不要加 `VITE_` 前缀，不得提交到 Git。开发时将变量写入被忽略的 `.env.local`，`npm run dev` 会运行同一接口。
+
+EdgeOne Makers（原 Pages）部署选择 Vite、根目录 `./`、输出目录 `dist`、构建命令 `npm run build`、安装命令 `npm ci`，构建 Node.js 选择 22.21.1 或更高的 22.x 版本。在项目环境变量中配置同样的 Redis URL 和 Token；`cloud-functions/api/share.js` 将 `/api/share` 接入现有分享实现，并使用平台提供的客户端 IP 限流。复用原数据库时，已有且未过期的分享可继续读取。
 
 分享单份上限 4 MiB；超过时请先压缩或拆分，编辑器本身不受此限制。为保护免费额度，同一来源每小时最多创建 20 次，全站每日最多 200 份 / 24 MiB；超额只暂停新建，不覆盖已有分享。页面和接口均不缓存分享响应，不提供修改原分享的接口。匿名链接不是权限管理，请只分享适合发送给同事的内容。
 

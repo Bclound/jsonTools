@@ -36,7 +36,7 @@ async function readText(request) {
 }
 
 export default {
-  async fetch(request) {
+  async fetch(request, { env = process.env, clientIp } = {}) {
     const url = new URL(request.url);
     if (!['GET', 'POST'].includes(request.method)) return failure('不支持此请求方式', 405, { Allow: 'GET, POST' });
     const id = url.searchParams.get('id');
@@ -46,8 +46,8 @@ export default {
       if ((origin && origin !== url.origin) || request.headers.get('sec-fetch-site') === 'cross-site') return failure('请从本站创建分享', 403);
       if (request.headers.get('content-type')?.split(';')[0] !== 'text/plain') return failure('请以 JSON 原文创建分享', 415);
     }
-    const endpoint = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-    const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+    const endpoint = env.KV_REST_API_URL || env.UPSTASH_REDIS_REST_URL;
+    const token = env.KV_REST_API_TOKEN || env.UPSTASH_REDIS_REST_TOKEN;
     if (!endpoint || !token) return failure('分享存储尚未连接，请稍后重试', 503);
     const redis = async (command, path = '') => {
       const response = await fetch(`${endpoint.replace(/\/$/, '')}${path}`, {
@@ -69,8 +69,8 @@ export default {
       try { text = await readText(request); } catch { return failure('无法读取 JSON，请重新粘贴后分享', 400); }
       if (text === null) return failure('分享内容不能超过 4 MB，请先压缩或拆分 JSON', 413);
       try { parseDocument(text); } catch (error) { return failure(error.message, 400); }
-      // Vercel 覆盖此请求头；仅用带密钥摘要限流，不保存原始 IP。
-      const ip = request.headers.get('x-vercel-forwarded-for') || 'local';
+      // 使用平台提供的来源，仅用带密钥摘要限流，不保存原始 IP。
+      const ip = clientIp || request.headers.get('x-vercel-forwarded-for') || 'local';
       const sender = createHmac('sha256', token).update(ip).digest('hex').slice(0, 32);
       const now = Date.now(), day = Math.floor(now / 86400000), hour = Math.floor(now / 3600000);
       const shareId = randomBytes(16).toString('base64url');

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import share from '../api/share.js';
+import { onRequest } from '../cloud-functions/api/share.js';
 import { SHARE_MAX_BYTES, SHARE_TTL_SECONDS, SHARE_ID } from '../src/share-config.js';
 
 function setup(t, handler = () => ({ result: 'OK' })) {
@@ -110,4 +111,32 @@ test('存储错误与缺少配置不会泄露密钥或 JSON', async t => {
   delete process.env.KV_REST_API_URL;
   delete process.env.UPSTASH_REDIS_REST_URL;
   assert.equal((await share.fetch(post('{}'))).status, 503);
+});
+
+test('EdgeOne 使用平台环境变量和真实来源，伪造 Vercel 请求头不能绕过限流', async t => {
+  const calls = setup(t);
+  const env = { UPSTASH_REDIS_REST_URL: 'https://edgeone-redis.example', UPSTASH_REDIS_REST_TOKEN: 'edgeone-secret' };
+  const text = '{"big":9007199254740993123,"中文":"测试"}';
+  for (const [clientIp, forwarded] of [['192.0.2.1', 'spoof-a'], ['192.0.2.1', 'spoof-b'], ['192.0.2.2', 'spoof-a']]) {
+    const response = await onRequest({ request: post(text, { 'x-vercel-forwarded-for': forwarded }), env, clientIp });
+    assert.equal(response.status, 201);
+    assert.match((await response.json()).id, SHARE_ID);
+  }
+  assert.ok(calls.every(call => call.url === env.UPSTASH_REDIS_REST_URL && call.command[7] === text));
+  assert.equal(calls[0].command[4], calls[1].command[4]);
+  assert.notEqual(calls[0].command[4], calls[2].command[4]);
+  assert.doesNotMatch(JSON.stringify(calls), /192\.0\.2|spoof-/);
+});
+
+test('EdgeOne 读取原有分享并保留禁止缓存和过期时间响应头', async t => {
+  const text = '{"big":9007199254740993123}';
+  setup(t, () => [{ result: text }, { result: 60 }]);
+  const env = { KV_REST_API_URL: 'https://redis.example', KV_REST_API_TOKEN: 'test-secret' };
+  const request = new Request(`https://json.example/api/share?id=${id}`);
+  const response = await onRequest({ request, env, clientIp: '192.0.2.1' });
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), text);
+  assert.equal(response.headers.get('Cache-Control'), 'no-store');
+  assert.ok(Number(response.headers.get('X-Share-Expires-At')) > Date.now());
+  assert.equal((await onRequest({ request, env: {}, clientIp: '192.0.2.1' })).status, 503);
 });
