@@ -1,0 +1,7 @@
+{
+  "cloudFunctions": {
+    "nodejs": {
+      "externalNodeModules": ["jsonc-parser"]
+    }
+  }
+}
