@@ -12,7 +12,7 @@
 
 首页与使用指南接入 51LA 统计，使用站点 ID `LMgkOWy0g8v4XHGL`，开启 `autoTrack` 事件分析与 `hashMode` 路由统计。51LA 会上报包含查询参数和 hash 的完整页面地址，分享链接中的分享 ID 也会进入统计；本地开发访问这两个页面时同样会加载 51LA。
 
-工具页的生产版本同时使用 Vercel Web Analytics 统计访客与页面浏览量。Vercel 统计不采集 JSON 内容、搜索词或分享 ID，上报前移除页面地址中的查询参数和 hash；本地开发不启用 Vercel 统计。
+部署在 Vercel 时，工具页的生产版本同时使用 Vercel Web Analytics 统计访客与页面浏览量。Vercel 统计不采集 JSON 内容、搜索词或分享 ID，上报前移除页面地址中的查询参数和 hash；本地开发和 EdgeOne 部署不启用 Vercel 统计。
 
 ## 搜索与 AI 可发现性
 

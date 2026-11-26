@@ -15,7 +15,7 @@ import { repairText } from './tools-core.js';
 import { parseDocument, formatDocument } from './core.js';
 import { inject } from '@vercel/analytics';
 
-if (import.meta.env.PROD) {
+if (import.meta.env.PROD && import.meta.env.VITE_VERCEL_ENV) {
   inject({
     mode: 'production',
     beforeSend(event) {
