@@ -140,3 +140,17 @@ test('EdgeOne 读取原有分享并保留禁止缓存和过期时间响应头', 
   assert.ok(Number(response.headers.get('X-Share-Expires-At')) > Date.now());
   assert.equal((await onRequest({ request, env: {}, clientIp: '192.0.2.1' })).status, 503);
 });
+
+test('EdgeOne 使用边缘入口域名校验同源，仍拒绝跨站及伪造通用转发域名', async t => {
+  const calls = setup(t);
+  const env = { KV_REST_API_URL: 'https://redis.example', KV_REST_API_TOKEN: 'test-secret' };
+  for (const [origin, site, status] of [['https://json.example', 'same-origin', 201], ['https://other.example', 'same-origin', 403], ['https://json.example', 'cross-site', 403]]) {
+    const request = new Request('http://internal.example/api/share', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain', Origin: origin, 'sec-fetch-site': site, 'eo-pages-host': 'json.example', 'x-forwarded-proto': 'https,http', 'x-forwarded-host': 'other.example' },
+      body: '{"id":9007199254740993123}',
+    });
+    assert.equal((await onRequest({ request, env, clientIp: '192.0.2.1' })).status, status);
+  }
+  assert.equal(calls.length, 1);
+});
